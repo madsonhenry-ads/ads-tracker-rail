@@ -1,6 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodePackages.npm", "google-chrome"]
-aptPkgs = ["libnss3", "libatk-bridge2.0-0", "libxcomposite1", "libxdamage1", "libxrandr2", "libgbm1", "libasound2", "libpangocairo-1.0-0", "libxshmfence1"]
+nixPkgs = ["nodePackages.npm", "google-chrome", "openssl"]
 
 [phases.install]
 cmds = ["npm install", "npx prisma generate"]
