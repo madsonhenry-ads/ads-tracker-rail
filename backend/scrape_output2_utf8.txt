@@ -1,0 +1,63 @@
+﻿Launching browser...
+Navigating to https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&search_type=page&sort_data[mode]=total_impressions&sort_data[direction]=desc&source=page-transparency-widget&view_all_page_id=102507296211697...
+Waiting for content to load...
+Scrolling down to load ads limit...
+Extracting ads data...
+--- Extracted Data ---
+Total ads dates found: 149
+Oldest dates reported: [
+  'Started running on Dec 1, 2025',
+  'Started running on Dec 2, 2025',
+  'Started running on Dec 3, 2025',
+  'Started running on Dec 8, 2025',
+  'Started running on Feb 10, 2026',
+  'Started running on Feb 11, 2026',
+  'Started running on Feb 12, 2026',
+  'Started running on Feb 13, 2026',
+  'Started running on Feb 16, 2026',
+  'Started running on Feb 18, 2026',
+  'Started running on Feb 19, 2026',
+  'Started running on Feb 2, 2026',
+  'Started running on Feb 20, 2026',
+  'Started running on Feb 24, 2026',
+  'Started running on Feb 25, 2026',
+  'Started running on Feb 26, 2026',
+  'Started running on Feb 27, 2026',
+  'Started running on Feb 3, 2026',
+  'Started running on Feb 4, 2026',
+  'Started running on Feb 5, 2026',
+  'Started running on Feb 6, 2026',
+  'Started running on Feb 8, 2026',
+  'Started running on Feb 9, 2026',
+  'Started running on Jan 1, 2026',
+  'Started running on Jan 11, 2026',
+  'Started running on Jan 15, 2026',
+  'Started running on Jan 16, 2026',
+  'Started running on Jan 21, 2026',
+  'Started running on Jan 22, 2026',
+  'Started running on Jan 26, 2026',
+  'Started running on Jan 5, 2026',
+  'Started running on Jan 6, 2026',
+  'Started running on Jan 7, 2026',
+  'Started running on Mar 1, 2026',
+  'Started running on Mar 2, 2026',
+  'Started running on Mar 3, 2026',
+  'Started running on Mar 4, 2026',
+  'Started running on May 14, 2025',
+  'Started running on May 25, 2025',
+  'Started running on May 7, 2025',
+  'Started running on Nov 30, 2025',
+  'Started running on Oct 6, 2025'
+]
+
+Top 10 Targeted URLs:
+- https://offer.ancientremediesrevived.com/c3-nb: 181 times
+- https://shop.ancientremedies.com/spc3-nb/unique-offer: 70 times
+- https://shop.ancientremedies.com/jf: 9 times
+- https://shop.ancientremedies.com/rc1: 6 times
+- https://shop.ancientremedies.com/art1: 6 times
+- https://shop.ancientremedies.com/kb: 6 times
+- https://shop.ancientremedies.com/uc1: 4 times
+- https://shop.ancientremedies.com/ch2: 4 times
+- https://shop.ancientremedies.com/gft2: 2 times
+- https://shop.ancientremedies.com/rc2: 2 times

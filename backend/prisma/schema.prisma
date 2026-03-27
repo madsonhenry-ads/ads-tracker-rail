@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE MODELS
+// ============================================
+
+model Page {
+  id              String    @id @default(uuid())
+  name            String    // Nome da página
+  facebookPageId  String    @unique // ID da página no Facebook
+  url             String    // URL da Ads Library
+  offerUrl        String?   // URL da Oferta
+  checkoutUrl     String?   // URL do Checkout
+  description     String?   // Descrição opcional
+  
+  // Metadata
+  country         String?   // País principal
+  language        String?   // Idioma principal
+  category        String?   // Categoria do negócio
+  tags            String[]  // Tags customizadas
+  
+  // Status
+  active          Boolean   @default(true)
+  lastScrapedAt   DateTime? // Última coleta bem-sucedida
+  scrapingEnabled Boolean   @default(true)
+  
+  // Configurações de Scraping
+  scrapePeriod    String    @default("8d") // 1d, 8d, 30d, etc
+  scrapeFrequency String    @default("daily") // hourly, daily, weekly
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  snapshots       AdSnapshot[]
+  metrics         Metric[]
+  
+  @@index([facebookPageId])
+  @@index([active])
+  @@map("pages")
+}
+
+model AdSnapshot {
+  id              String    @id @default(uuid())
+  pageId          String
+  
+  // Data coletada
+  totalAds        Int       // Total de anúncios ativos
+  timestamp       DateTime  @default(now()) // Momento exato da coleta
+  date            DateTime  // Data (truncada para comparações)
+  
+  // Metadata da coleta
+  collectionPeriod String   @default("8d") // Período usado na coleta
+  scrapeDuration  Int?      // Duração em ms
+  success         Boolean   @default(true)
+  errorMessage    String?
+  
+  // Raw data (opcional, para debug)
+  rawData         Json?
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  
+  // Relations
+  page            Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  @@unique([pageId, date])
+  @@index([pageId, date])
+  @@index([timestamp])
+  @@map("ad_snapshots")
+}
+
+model Metric {
+  id                    String    @id @default(uuid())
+  pageId                String
+  date                  DateTime  // Data de referência
+  
+  // Métricas principais
+  totalAds              Int       // Total de anúncios neste dia
+  
+  // Variações
+  dailyChange           Int?      // Diferença vs dia anterior
+  weeklyChange          Int?      // Diferença vs 7 dias atrás
+  monthlyChange         Int?      // Diferença vs 30 dias atrás
+  
+  // Percentuais
+  dailyChangePercent    Float?
+  weeklyChangePercent   Float?
+  monthlyChangePercent  Float?
+  
+  // Médias móveis
+  movingAvg7d           Float?    // Média móvel de 7 dias
+  movingAvg30d          Float?    // Média móvel de 30 dias
+  
+  // Estatísticas
+  maxAdsLast7d          Int?      // Máximo nos últimos 7 dias
+  minAdsLast7d          Int?      // Mínimo nos últimos 7 dias
+  avgAdsLast7d          Float?    // Média nos últimos 7 dias
+  
+  // Trends
+  trend                 String?   // "up", "down", "stable"
+  anomalyDetected       Boolean   @default(false)
+  
+  // Timestamps
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  // Relations
+  page                  Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  
+  @@unique([pageId, date])
+  @@index([pageId, date])
+  @@map("metrics")
+}
+
+// ============================================
+// SYSTEM & LOGGING
+// ============================================
+
+model ScrapingLog {
+  id              String    @id @default(uuid())
+  pageId          String?   // Null = scraping geral
+  
+  // Execução
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  duration        Int?      // Milissegundos
+  
+  // Status
+  status          String    // "running", "completed", "failed"
+  pagesScraped    Int       @default(0)
+  pagesSuccess    Int       @default(0)
+  pagesFailed     Int       @default(0)
+  
+  // Erros
+  errors          Json[]    // Array de erros detalhados
+  
+  // Metadata
+  triggeredBy     String?   // "cron", "manual", "api"
+  
+  @@index([startedAt])
+  @@index([status])
+  @@map("scraping_logs")
+}

@@ -1,0 +1,436 @@
+﻿---JSON_START---
+[
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Lays Sant'anna",
+    "dias_ativos": 10,
+    "media_anuncios": 202,
+    "ads_hoje": 190,
+    "link": "https://inlead.digital/progrma-pilates-em-casa/"
+  },
+  {
+    "nicho": "MATERNIDADE",
+    "oferta": "Michelle Bottrel - English",
+    "dias_ativos": 10,
+    "media_anuncios": 88,
+    "ads_hoje": 160,
+    "link": "https://click.theobediencelanguage.com/vsl-tol-06-15"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Dra. Vanderl├®a Coelho",
+    "dias_ativos": 10,
+    "media_anuncios": 77,
+    "ads_hoje": 93,
+    "link": "https://magraaposos40.com.br/funnel/plam-perpetuo/detox-12em10_1-ig/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Viva Leve Mulher",
+    "dias_ativos": 10,
+    "media_anuncios": 71,
+    "ads_hoje": 120,
+    "link": "https://naturalyligera.com/recetas?utm_source=www.facebook.com&sck=1770844202067_17708443727697"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Nutri Marina Cardoso",
+    "dias_ativos": 10,
+    "media_anuncios": 49,
+    "ads_hoje": 53,
+    "link": "https://desafio.nutrimarinacardoso.com.br/"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "Padre Bento Moreira",
+    "dias_ativos": 10,
+    "media_anuncios": 38,
+    "ads_hoje": 37,
+    "link": "https://arcanjomiguel.xpages.co/"
+  },
+  {
+    "nicho": "MINDFULLNESS",
+    "oferta": "Silvia Vieira",
+    "dias_ativos": 10,
+    "media_anuncios": 26,
+    "ads_hoje": 18,
+    "link": "https://diario.manifestandosonhos.online/hooponopono/"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Renata Moretti",
+    "dias_ativos": 10,
+    "media_anuncios": 15,
+    "ads_hoje": 12,
+    "link": "https://codigosdareconexao.xpages.co/"
+  },
+  {
+    "nicho": "MINDFULLNESS",
+    "oferta": "Lucia Helena ",
+    "dias_ativos": 10,
+    "media_anuncios": 10,
+    "ads_hoje": 12,
+    "link": "https://diario.manifestandosonhos.online/hooponopono/#oferta"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "El Secreto para Recuperar a Tu Ex ",
+    "dias_ativos": 10,
+    "media_anuncios": 6,
+    "ads_hoje": 10,
+    "link": "https://recuperaratuaex.xpages.co/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Laura Sofia",
+    "dias_ativos": 10,
+    "media_anuncios": 5,
+    "ads_hoje": 2,
+    "link": "https://www.healthlifesphere.online/vl15LMesAF?tap_a=166029-bc0a1b&ref=mwe1mtm"
+  },
+  {
+    "nicho": "HEALTH",
+    "oferta": "Ancient Remedies",
+    "dias_ativos": 9,
+    "media_anuncios": 467,
+    "ads_hoje": 570,
+    "link": "https://offer.ancientremediesrevived.com/c3-nb/unique-offer#next-step"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Dr. Hiroshi Tanaka",
+    "dias_ativos": 9,
+    "media_anuncios": 85,
+    "ads_hoje": 120,
+    "link": "https://www.vivasalud.site/gelatina_bariatrica"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": " Maria Luc├¡a",
+    "dias_ativos": 9,
+    "media_anuncios": 66,
+    "ads_hoje": 24,
+    "link": "https://saludhoy24.site/pagenew3newx/?tok=zpd5anrh2d&q24wi6x6=s68s1tbd&xid=mbw5jw34&utm_source=FB&utm_campaign=CNT08+-+CBO+-+1-3-1+-AD38hook1+-+28.01+-+MARIA+LUCIA%7C120241951070690111&utm_medium=ABERTO%2B+%E2%80%94+C%C3%B3pia%7C120241951176040111&utm_content=AD38hook1%7C120241951176060111&utm_term=Facebook_Mobile_Feed&xcod=FBhQwK21wXxRCNT08+-+CBO+-+1-3-1+-AD38hook1+-+28.01+-+MARIA+LUCIA%7C120241951070690111hQwK21wXxRABERTO%2B+%E2%80%94+C%C3%B3pia%7C120241951176040111hQwK21wXxRAD38hook1%7C120241951176060111hQwK21wXxRFacebook_Mobile_Feed&fbclid=IwY2xjawPpnK5leHRuA2FlbQEwAGFkaWQBqy9q47m_P3NydGMGYXBwX2lkDzQwOTk2MjYyMzA4NTYwOQABHtdL_6l3F7u9JR1XC3ebzZp87adNM_8wv6daj5ivyXM72wSy1-RzrfYIQGC4_aem_WEOAeINrc6x52hq9m1562A&utm_id=120241951070690111&twrclid=697cbd61898fe8d6ba0ff856"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Esp. Maria Carla",
+    "dias_ativos": 9,
+    "media_anuncios": 45,
+    "ads_hoje": 3,
+    "link": "https://desjejuadaabarriga.xpages.co/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Olivia Carla Arag├úo",
+    "dias_ativos": 9,
+    "media_anuncios": 25,
+    "ads_hoje": 26,
+    "link": "https://jejum.amandaaporto.com.br/?mlid=lead_20260210_8g1h5r9nl9t&utm_source=lead_20260210_8g1h5r9nl9t&src=lead_20260210_8g1h5r9nl9t"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Sophia Williams",
+    "dias_ativos": 9,
+    "media_anuncios": 24,
+    "ads_hoje": 14,
+    "link": "https://class.jesscarter.online/pv.html?src=1770990388909"
+  },
+  {
+    "nicho": "HEALING",
+    "oferta": "Dra. Sof├¡a Mart├¡nez",
+    "dias_ativos": 9,
+    "media_anuncios": 22,
+    "ads_hoje": 22,
+    "link": "https://app.intestinoactivo.digital/?utm_source=www.facebook.com&xcod=1770834441116_17708339765206&sck=www.facebook.com"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Clara M├®ndez",
+    "dias_ativos": 9,
+    "media_anuncios": 15,
+    "ads_hoje": 23,
+    "link": "https://claramendezpsicologa.com/den/"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Beatriz Antonele",
+    "dias_ativos": 9,
+    "media_anuncios": 13,
+    "ads_hoje": 14,
+    "link": "https://23tecnicasexclusivas.com/"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Logler5",
+    "dias_ativos": 8,
+    "media_anuncios": 160,
+    "ads_hoje": 120,
+    "link": "https://play.google.com/store/apps/details?id=com.app.logera"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Velapp",
+    "dias_ativos": 8,
+    "media_anuncios": 155,
+    "ads_hoje": 150,
+    "link": "https://play.google.com/store/apps/details?id=com.app.velora"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Lognex1",
+    "dias_ativos": 8,
+    "media_anuncios": 143,
+    "ads_hoje": 130,
+    "link": "https://play.google.com/store/apps/details?id=com.app.lognexa"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Scrnax5",
+    "dias_ativos": 8,
+    "media_anuncios": 135,
+    "ads_hoje": 110,
+    "link": "https://play.google.com/store/apps/details?id=com.app.screnax"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Screnax4",
+    "dias_ativos": 8,
+    "media_anuncios": 134,
+    "ads_hoje": 120,
+    "link": "https://play.google.com/store/apps/details?id=com.app.screnax"
+  },
+  {
+    "nicho": "PRODUTIVIDADE",
+    "oferta": "Thomas Miller",
+    "dias_ativos": 8,
+    "media_anuncios": 88,
+    "ads_hoje": 0,
+    "link": "https://www.mentalsyncprogram.com/last-news-new"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "Christian Knowledge",
+    "dias_ativos": 8,
+    "media_anuncios": 86,
+    "ads_hoje": 87,
+    "link": "https://sabercristao.com/lettresdePaul/"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "Codebigpage",
+    "dias_ativos": 8,
+    "media_anuncios": 66,
+    "ads_hoje": 62,
+    "link": "https://play.google.com/store/apps/details?id=com.app.codelog"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "F├ítima Andrade Silva",
+    "dias_ativos": 8,
+    "media_anuncios": 65,
+    "ads_hoje": 64,
+    "link": "https://pay.hotmart.com/E104322960U?checkoutMode=10&ref=Y104420913H"
+  },
+  {
+    "nicho": "SPY",
+    "oferta": "CodeApp2",
+    "dias_ativos": 8,
+    "media_anuncios": 41,
+    "ads_hoje": 29,
+    "link": "https://play.google.com/store/apps/details?id=com.app.codelog"
+  },
+  {
+    "nicho": "PRODUTIVIDADE",
+    "oferta": "Paul Coyle Davis",
+    "dias_ativos": 8,
+    "media_anuncios": 39,
+    "ads_hoje": 0,
+    "link": "https://www.mentalsyncprogram.com/last-news-new"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "Camunidad ├ürbol De La Vida",
+    "dias_ativos": 8,
+    "media_anuncios": 16,
+    "ads_hoje": 4,
+    "link": "https://xn--comunidadrboldelavida-i0b.site/etapa-01/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Maria Torrez",
+    "dias_ativos": 8,
+    "media_anuncios": 6,
+    "ads_hoje": 0,
+    "link": "https://ritmosaludable.site/kdojnsa/"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "Bruna santos",
+    "dias_ativos": 8,
+    "media_anuncios": 5,
+    "ads_hoje": 3,
+    "link": "https://mapacatolico.rf.gd/theologiquesavancees/?i=1"
+  },
+  {
+    "nicho": "RELIGIOSO",
+    "oferta": "Kairos Digital",
+    "dias_ativos": 7,
+    "media_anuncios": 71,
+    "ads_hoje": 76,
+    "link": "https://kairosdigital145.systeme.io/les13lettresdepaul-fb9db3a6-015d5686"
+  },
+  {
+    "nicho": "DIABETES",
+    "oferta": "Be Welly",
+    "dias_ativos": 7,
+    "media_anuncios": 29,
+    "ads_hoje": 44,
+    "link": "https://glucosaenbalance.com/1"
+  },
+  {
+    "nicho": "RENDA EXTRA",
+    "oferta": "Isabella Torres",
+    "dias_ativos": 7,
+    "media_anuncios": 25,
+    "ads_hoje": 0,
+    "link": "https://go.aidnowconnects.com/6986c14a6dc88808918e0557?sub1={{ad.id}}&sub2={{adset.id}}&sub3={{campaign.id}}&sub4={{ad.name}}&sub5={{adset.name}}&sub6={{campaign.name}}&sub7={{placement}}&sub8={{site_source_name}}&utm_source=facebook&utm_medium=paid"
+  },
+  {
+    "nicho": "RENDA-EXTRA",
+    "oferta": "Fabricantes Chinos",
+    "dias_ativos": 7,
+    "media_anuncios": 11,
+    "ads_hoje": 0,
+    "link": "https://fabricanteschinos.xpages.co/"
+  },
+  {
+    "nicho": "INFANTIL",
+    "oferta": "Livro M├ígico Infantil",
+    "dias_ativos": 6,
+    "media_anuncios": 22,
+    "ads_hoje": 23,
+    "link": "https://livromagicoinfantil.pt/example?id=106886"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Maria Costantine",
+    "dias_ativos": 6,
+    "media_anuncios": 6,
+    "ads_hoje": 0,
+    "link": "https://gelatinabari2026.xpages.co/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Instituto Vida Sana",
+    "dias_ativos": 6,
+    "media_anuncios": 3,
+    "ads_hoje": 1,
+    "link": "https://inlead.digital/te-barcia/"
+  },
+  {
+    "nicho": "DIABETE",
+    "oferta": " Health Standard",
+    "dias_ativos": 5,
+    "media_anuncios": 7,
+    "ads_hoje": 12,
+    "link": "https://nloeds.com/?utm_id=WlCJISYWvx49CFpZyZes&utm_medium=Tie4bnEQ29&utm_campaign=mMVz6CDPWb&utm_content=5IHG7PcfND&utm_visit=2d0409fc-ed36-4c73-9fdd-a6b628c52021"
+  },
+  {
+    "nicho": "RENDA EXTRA",
+    "oferta": "Michael Thompson",
+    "dias_ativos": 4,
+    "media_anuncios": 32,
+    "ads_hoje": 0,
+    "link": "https://go.aidnowconnects.com/6986c14a6dc88808918e0557?sub1={{ad.id}}&sub2={{adset.id}}&sub3={{campaign.id}}&sub4={{ad.name}}&sub5={{adset.name}}&sub6={{campaign.name}}&sub7={{placement}}&sub8={{site_source_name}}&utm_source=facebook&utm_medium=paid"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Health Life",
+    "dias_ativos": 4,
+    "media_anuncios": 11,
+    "ads_hoje": 0,
+    "link": "https://protocolorestart.beppuvox.store/"
+  },
+  {
+    "nicho": "INTESTINO",
+    "oferta": "Sandro Nature",
+    "dias_ativos": 4,
+    "media_anuncios": 7,
+    "ads_hoje": 9,
+    "link": "https://app.sandrosaludintestinal.online/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Valeria Montes",
+    "dias_ativos": 3,
+    "media_anuncios": 2,
+    "ads_hoje": 0,
+    "link": "https://quiz.ayunometabolico.site/"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Julia Silva",
+    "dias_ativos": 3,
+    "media_anuncios": 2,
+    "ads_hoje": 4,
+    "link": "https://tesmetabolicos.vidaensalud.site/"
+  },
+  {
+    "nicho": "HEALING",
+    "oferta": "Fantasy IA",
+    "dias_ativos": 3,
+    "media_anuncios": 1,
+    "ads_hoje": 0,
+    "link": "https://www.diagnosticonatural.com/hot"
+  },
+  {
+    "nicho": "EMAGRECIMENTO",
+    "oferta": "Isabella Souza",
+    "dias_ativos": 2,
+    "media_anuncios": 8,
+    "ads_hoje": 0,
+    "link": "https://truquedolimao.com/#inicio"
+  },
+  {
+    "nicho": "RENDA EXTRA",
+    "oferta": "Emily Anderson",
+    "dias_ativos": 2,
+    "media_anuncios": 5,
+    "ads_hoje": 0,
+    "link": "https://go.aidnowconnects.com/6986c14a6dc88808918e0557?sub1={{ad.id}}&sub2={{adset.id}}&sub3={{campaign.id}}&sub4={{ad.name}}&sub5={{adset.name}}&sub6={{campaign.name}}&sub7={{placement}}&sub8={{site_source_name}}&utm_source=facebook&utm_medium=paid"
+  },
+  {
+    "nicho": "ED",
+    "oferta": "Isabella Violet",
+    "dias_ativos": 2,
+    "media_anuncios": 2,
+    "ads_hoje": 0,
+    "link": "https://rafaela-harvard.fun/ed-bs/?utm_source=FB&utm_campaign=%7B%7Bcampaign.name%7D%7D%7C%7B%7Bcampaign.id%7D%7D&utm_medium=%7B%7Badset.name%7D%7D%7C%7B%7Badset.id%7D%7D&utm_content=%7B%7Bad.name%7D%7D%7C%7B%7Bad.id%7D%7D&utm_term=%7B%7Bplacement%7D%7D&cid=54922411768"
+  },
+  {
+    "nicho": "RENDA-EXTRA",
+    "oferta": "Avan├ºo Digital ",
+    "dias_ativos": 1,
+    "media_anuncios": 65,
+    "ads_hoje": 65,
+    "link": "https://visionx-ia.lovable.app/"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Noelle Azem",
+    "dias_ativos": 1,
+    "media_anuncios": 24,
+    "ads_hoje": 24,
+    "link": "https://uniaodefinitiva.com.br/vsl/"
+  },
+  {
+    "nicho": "RELACIONAMENTO",
+    "oferta": "Nicolas Martin",
+    "dias_ativos": 1,
+    "media_anuncios": 18,
+    "ads_hoje": 18,
+    "link": "https://reconqueteintense.online/"
+  }
+]
+---JSON_END---
