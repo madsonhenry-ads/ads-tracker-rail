@@ -14,23 +14,25 @@ dotenv.config();
 const app: Express = express();
 
 // Middleware
-const allowedOrigins = [
-    'http://localhost:3000', 
-    'http://localhost:3001', 
-    'http://localhost:5173',
-    'https://frontend-production-6bfc.up.railway.app',
-    'http://frontend-production-6bfc.up.railway.app'
-];
+app.use((req: Request, res: Response, next: NextFunction) => {
+    // Força a liberação absoluta para o Frontend na Nuvem e Localhost
+    const origin = req.headers.origin || '*';
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Responde direto para requisições de configuração (OPTIONS)
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+    next();
+});
+
+// Mantém o cors também por garantia (para as outras rotas)
 app.use(cors({
-    origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            // Se testar a partir de outro lugar novo não-listado, libera mesmo assim pra não bloquear o painel
-            return callback(null, true);
-        }
-        return callback(null, origin);
-    },
+    origin: true,
     credentials: true
 }));
 app.use(express.json());
