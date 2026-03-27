@@ -8,4 +8,4 @@ cmds = ["npm install --prefix frontend"]
 cmds = ["npm run build --prefix frontend"]
 
 [start]
-cmd = "npx serve frontend/dist -s"
+cmd = "npx serve frontend/dist -s -l $PORT"
