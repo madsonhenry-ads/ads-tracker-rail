@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { Bell, RefreshCw, Search, Play, Menu, X } from 'lucide-react'
 import { scraperApi } from '../../services/api'
+import { useSearchStore } from '../../store/useSearchStore'
 
 interface HeaderProps {
     onMenuClick: () => void
@@ -10,6 +11,7 @@ interface HeaderProps {
 export default function Header({ onMenuClick }: HeaderProps) {
     const queryClient = useQueryClient()
     const [isSearchOpen, setIsSearchOpen] = useState(false)
+    const { searchTerm, setSearchTerm } = useSearchStore()
 
     const { data: statusRes } = useQuery({
         queryKey: ['scraperStatus'],
@@ -51,7 +53,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" />
                         <input
                             type="text"
-                            placeholder="Search pages..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search pages, categories, tags..."
                             className="w-64 lg:w-80 pl-10 pr-4 py-2 bg-dark-800/50 border border-dark-700 rounded-lg text-white text-sm
                              placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50
                              transition-all duration-200"
@@ -74,11 +78,16 @@ export default function Header({ onMenuClick }: HeaderProps) {
                             <input
                                 autoFocus
                                 type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search..."
                                 className="flex-1 bg-transparent border-none text-white text-sm focus:ring-0 p-1"
                             />
                             <button 
-                                onClick={() => setIsSearchOpen(false)} 
+                                onClick={() => {
+                                    setIsSearchOpen(false)
+                                    setSearchTerm('')
+                                }} 
                                 aria-label="Close search"
                                 className="p-1 text-dark-500 hover:text-white"
                             >
@@ -122,4 +131,5 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </header>
     )
 }
+
 

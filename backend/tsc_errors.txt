@@ -1,0 +1,26 @@
+﻿src/controllers/funnelController.ts(72,58): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/controllers/funnelController.ts(95,61): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/metrics.routes.ts(81,17): error TS2322: Type 'string | string[]' is not assignable to type 'string | StringFilter<"Metric"> | undefined'.
+  Type 'string[]' is not assignable to type 'string | StringFilter<"Metric"> | undefined'.
+src/routes/pages.routes.ts(48,22): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/pages.routes.ts(116,22): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/pages.routes.ts(137,22): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/scraper.routes.ts(40,22): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/snapshots.routes.ts(86,17): error TS2783: 'pageId' is specified more than once, so this usage will be overwritten.
+src/services/adLibraryScraper.ts(53,41): error TS2339: Property 'launch' does not exist on type 'typeof import("C:/Users/madso/Facebook Ads Tracker Dashboard/backend/node_modules/puppeteer-extra/dist/index")'.
+src/services/adLibraryScraper.ts(185,46): error TS18046: 'img' is of type 'unknown'.
+src/services/adLibraryScraper.ts(190,37): error TS2322: Type 'unknown' is not assignable to type 'null'.
+src/services/adLibraryScraper.ts(318,21): error TS2322: Type 'unknown[]' is not assignable to type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/services/funnelService.ts(69,41): error TS2339: Property 'launch' does not exist on type 'typeof import("C:/Users/madso/Facebook Ads Tracker Dashboard/backend/node_modules/puppeteer-extra/dist/index")'.
+src/services/funnelService.ts(119,43): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string | ElementHandle<Element>'.
+src/services/funnelService.ts(209,54): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string | URL'.
+src/services/funnelService.ts(211,52): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/services/funnelService.ts(213,52): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/services/uncloakService.ts(141,41): error TS2339: Property 'launch' does not exist on type 'typeof import("C:/Users/madso/Facebook Ads Tracker Dashboard/backend/node_modules/puppeteer-extra/dist/index")'.

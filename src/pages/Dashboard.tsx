@@ -5,14 +5,18 @@ import {
     TrendingUp,
     TrendingDown,
     Zap,
-    Target
+    Target,
+    SearchX
 } from 'lucide-react'
 import { pagesApi, metricsApi } from '../services/api'
 import StatCard from '../components/dashboard/StatCard'
 import PageCard from '../components/dashboard/PageCard'
 import TrendChart from '../components/dashboard/TrendChart'
+import { useSearchStore } from '../store/useSearchStore'
 
 export default function Dashboard() {
+    const { searchTerm } = useSearchStore()
+
     // Fetch pages
     const { data: pagesData, isLoading: pagesLoading } = useQuery({
         queryKey: ['pages'],
@@ -41,6 +45,18 @@ export default function Dashboard() {
     })
 
     const isLoading = pagesLoading || metricsLoading
+
+    // Filter pages based on search term
+    const filteredPages = pagesData?.filter(page => {
+        if (!searchTerm) return true
+        
+        const term = searchTerm.toLowerCase()
+        const nameMatch = page.name.toLowerCase().includes(term)
+        const categoryMatch = page.category?.toLowerCase().includes(term)
+        const tagMatch = page.tags.some(tag => tag.toLowerCase().includes(term))
+        
+        return nameMatch || categoryMatch || tagMatch
+    })
 
     return (
         <div className="space-y-6">
@@ -91,9 +107,12 @@ export default function Dashboard() {
             {/* Pages Grid */}
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-white">Monitored Pages</h2>
+                    <h2 className="text-xl font-semibold text-white">
+                        {searchTerm ? 'Search Results' : 'Monitored Pages'}
+                    </h2>
                     <span className="text-sm text-dark-400">
-                        {pagesData?.length ?? 0} pages
+                        {filteredPages?.length ?? 0} {filteredPages?.length === 1 ? 'page' : 'pages'}
+                        {searchTerm && ` found for "${searchTerm}"`}
                     </span>
                 </div>
 
@@ -107,11 +126,28 @@ export default function Dashboard() {
                             </div>
                         ))}
                     </div>
-                ) : pagesData && pagesData.length > 0 ? (
+                ) : filteredPages && filteredPages.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {pagesData.map((page) => (
+                        {filteredPages.map((page) => (
                             <PageCard key={page.id} page={page} />
                         ))}
+                    </div>
+                ) : searchTerm ? (
+                    <div className="card p-12 text-center border-dashed border-dark-700">
+                        <div className="w-16 h-16 bg-dark-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <SearchX className="w-8 h-8 text-dark-500" />
+                        </div>
+                        <h3 className="text-lg font-medium text-white mb-2">No results found</h3>
+                        <p className="text-dark-400">
+                            We couldn't find any pages matching "<strong>{searchTerm}</strong>".
+                            Try checking for typos or searching for a different term.
+                        </p>
+                        <button 
+                            onClick={() => useSearchStore.getState().setSearchTerm('')}
+                            className="mt-6 text-primary-400 hover:text-primary-300 font-medium transition-colors"
+                        >
+                            Clear search
+                        </button>
                     </div>
                 ) : (
                     <div className="card p-12 text-center">
@@ -132,3 +168,4 @@ export default function Dashboard() {
         </div>
     )
 }
+
