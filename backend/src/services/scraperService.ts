@@ -277,6 +277,24 @@ class ScraperService {
                 }
             });
 
+        } catch (error: any) {
+            logger.error(`Fatal error during bulk scrape: ${error.message}`);
+            // Mark log as failed if we haven't completed
+            try {
+                await prisma.scrapingLog.update({
+                    where: { id: scrapingLog.id },
+                    data: {
+                        status: 'failed',
+                        completedAt: new Date(),
+                        duration: Date.now() - scrapingLog.startedAt.getTime(),
+                        pagesSuccess: successCount,
+                        pagesFailed: failedCount
+                    }
+                });
+            } catch (updateError) {
+                logger.error('Failed to update log status to failed:', updateError);
+            }
+            throw error;
         } finally {
             await this.close();
         }
@@ -412,6 +430,24 @@ class ScraperService {
         });
 
         logger.info(`Metrics calculated for page ${pageId}`);
+    }
+
+    async cleanupStuckLogs(): Promise<void> {
+        try {
+            logger.info('Cleaning up stuck scraping logs...');
+            const result = await prisma.scrapingLog.updateMany({
+                where: { status: 'running' },
+                data: {
+                    status: 'failed',
+                    completedAt: new Date()
+                }
+            });
+            if (result.count > 0) {
+                logger.info(`Successfully cleared ${result.count} stuck logs`);
+            }
+        } catch (error) {
+            logger.error('Failed to cleanup stuck logs:', error);
+        }
     }
 }
 

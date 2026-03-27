@@ -2,6 +2,7 @@ import 'dotenv/config';
 import app from './app.js';
 import logger from './utils/logger.js';
 import prisma from './config/database.js';
+import scraperService from './services/scraperService.js';
 
 const PORT = process.env.PORT || 5000;
 console.log('DEBUG: CWD:', process.cwd());
@@ -13,6 +14,9 @@ async function main() {
         // Test database connection
         await prisma.$connect();
         logger.info('✅ Database connected successfully');
+
+        // Cleanup any stuck logs from previous runs
+        await scraperService.cleanupStuckLogs();
 
         // Start server
         app.listen(Number(PORT), '0.0.0.0', () => {
