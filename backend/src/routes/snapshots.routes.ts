@@ -50,7 +50,7 @@ router.get('/page/:pageId', async (req: Request, res: Response) => {
 
         const snapshots = await prisma.adSnapshot.findMany({
             where: {
-                pageId,
+                pageId: pageId as string,
                 date: { gte: startDate }
             },
             orderBy: { date: 'asc' }

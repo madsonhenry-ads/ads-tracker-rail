@@ -4,6 +4,7 @@ import { createCursor } from 'ghost-cursor';
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 
+// @ts-ignore
 puppeteer.use(StealthPlugin());
 
 // --- Types ---

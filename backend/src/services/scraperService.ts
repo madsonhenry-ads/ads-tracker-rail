@@ -145,7 +145,7 @@ class ScraperService {
         // Try evaluating DOM directly
         const count = await page.evaluate(() => {
             // Look for elements that might contain ad count
-            const elements = document.querySelectorAll('span, div');
+            const elements = Array.from(document.querySelectorAll('span, div'));
             for (const el of elements) {
                 const text = el.textContent || '';
                 const match = text.match(/(\d+(?:,\d+)*)\s*ads?/i);

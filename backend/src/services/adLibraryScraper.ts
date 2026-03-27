@@ -1,7 +1,9 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { logger } from '../utils/logger.js';
+import { Browser, Page as PuppeteerPage } from 'puppeteer';
 
+// @ts-ignore
 puppeteer.use(StealthPlugin());
 
 interface AdLibraryScrapeResult {

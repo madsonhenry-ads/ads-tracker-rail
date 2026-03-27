@@ -4,6 +4,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { createCursor } from 'ghost-cursor';
 import { logger } from '../utils/logger.js';
 
+// @ts-ignore
 puppeteer.use(StealthPlugin());
 
 interface SubdomainResult {

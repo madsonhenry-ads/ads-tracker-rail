@@ -27,7 +27,7 @@ export const mapFunnel = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'URL is required' });
         }
 
-        const funnel = await funnelService.mapFunnel(url, 2, headful);
+        const funnel = await funnelService.mapFunnel(url as string, 2, !!headful);
         res.json({ funnel });
     } catch (error: any) {
         logger.error('Error in mapFunnel controller', error);
