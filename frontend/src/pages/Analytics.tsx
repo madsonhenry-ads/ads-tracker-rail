@@ -12,9 +12,7 @@ import {
     Cell
 } from 'recharts'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { metricsApi, pagesApi } from '../services/api'
-
-const COLORS = ['#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981']
+import { metricsApi } from '../services/api'
 
 export default function Analytics() {
     // Fetch overview
@@ -31,15 +29,6 @@ export default function Analytics() {
         queryKey: ['metrics', 'top-pages'],
         queryFn: async () => {
             const response = await metricsApi.getTopPages(10)
-            return response.data.data
-        }
-    })
-
-    // Fetch trends
-    const { data: trends } = useQuery({
-        queryKey: ['metrics', 'trends', 7],
-        queryFn: async () => {
-            const response = await metricsApi.getTrends(7)
             return response.data.data
         }
     })
