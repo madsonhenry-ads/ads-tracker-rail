@@ -322,7 +322,7 @@ facebook-ads-tracker/
 ├── 📂 docker/                      # Docker Configuration
 │   ├── Dockerfile.frontend
 │   ├── Dockerfile.backend
-│   └── docker-compose.yml
+│   └── https://github.com/madsonhenry-ads/ads-tracker-rail.git
 │
 ├── 📂 docs/                        # Documentation
 │   ├── API.md
