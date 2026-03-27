@@ -1,23 +1,33 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { Bell, RefreshCw, Search, Play } from 'lucide-react'
 import { scraperApi } from '../../services/api'
 
 export default function Header() {
-    const [isRunning, setIsRunning] = useState(false)
     const queryClient = useQueryClient()
+
+    // Sensor passivo que "pinga" o servidor de 5 em 5 segundos
+    const { data: statusRes } = useQuery({
+        queryKey: ['scraperStatus'],
+        queryFn: () => scraperApi.getStatus(),
+        refetchInterval: 5000,
+    })
+
+    const isServerRunning = statusRes?.data?.data?.isRunning || false;
 
     const runScraperMutation = useMutation({
         mutationFn: () => scraperApi.runAll(),
-        onMutate: () => setIsRunning(true),
-        onSettled: () => {
-            setTimeout(() => {
-                setIsRunning(false)
-                queryClient.invalidateQueries({ queryKey: ['pages'] })
-                queryClient.invalidateQueries({ queryKey: ['metrics'] })
-            }, 5000)
+        onSuccess: () => {
+            // Força a validação imediata do radar logo após disparar
+            queryClient.invalidateQueries({ queryKey: ['scraperStatus'] })
         },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['pages'] })
+            queryClient.invalidateQueries({ queryKey: ['metrics'] })
+        }
     })
+
+    const isRunning = runScraperMutation.isPending || isServerRunning;
 
     return (
         <header className="h-16 bg-dark-900/50 backdrop-blur-xl border-b border-dark-800 flex items-center justify-between px-6">
