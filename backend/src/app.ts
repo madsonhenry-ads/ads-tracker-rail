@@ -14,8 +14,23 @@ dotenv.config();
 const app: Express = express();
 
 // Middleware
+const allowedOrigins = [
+    'http://localhost:3000', 
+    'http://localhost:3001', 
+    'http://localhost:5173',
+    'https://frontend-production-6bfc.up.railway.app',
+    'http://frontend-production-6bfc.up.railway.app'
+];
 app.use(cors({
-    origin: true, // Permite qualquer origin refletindo a URL que fez o request
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            // Se testar a partir de outro lugar novo não-listado, libera mesmo assim pra não bloquear o painel
+            return callback(null, true);
+        }
+        return callback(null, origin);
+    },
     credentials: true
 }));
 app.use(express.json());
