@@ -3,7 +3,26 @@ import { funnelService } from '../services/funnelService.js';
 import { uncloakService } from '../services/uncloakService.js';
 import { adLibraryService } from '../services/adLibraryService.js';
 import { adLibraryScraper } from '../services/adLibraryScraper.js';
+import { transcriptionService } from '../services/transcriptionService.js';
 import { logger } from '../utils/logger.js';
+
+// ... other exports ...
+
+export const transcribeAdVideo = async (req: Request, res: Response) => {
+    try {
+        const { videoUrl } = req.body;
+        
+        if (!videoUrl) {
+            return res.status(400).json({ error: 'videoUrl is required' });
+        }
+
+        const transcript = await transcriptionService.transcribeAudio(videoUrl);
+        res.json({ success: true, text: transcript });
+    } catch (error: any) {
+        logger.error('Error in transcribeAdVideo controller', error);
+        res.status(500).json({ error: error.message });
+    }
+};
 
 export const enumerateSubdomains = async (req: Request, res: Response) => {
     try {
