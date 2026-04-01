@@ -42,7 +42,35 @@ export class AdLibraryScraper {
         // Construct URL with filters for maximum visibility
         const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${pageId}&sort_data[mode]=total_impressions&sort_data[direction]=desc&media_type=all`;
 
-        const launchArgs = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'];
+        const launchArgs = [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-blink-features=AutomationControlled',
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--single-process'
+        ];
+
+        let executablePath: string | undefined = undefined;
+
+        // Auto-detect Chrome binary for Linux (Railway/Nixpacks)
+        if (process.platform === 'linux') {
+            const fs = await import('fs');
+            const commonPaths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium'
+            ];
+            
+            for (const path of commonPaths) {
+                if (fs.existsSync(path)) {
+                    executablePath = path;
+                    logger.info(`🧭 Found system browser at: ${executablePath}`);
+                    break;
+                }
+            }
+        }
 
         if (this.proxyHost) {
             const proxyUrl = `${this.proxyHost}:${this.proxyPort}`;
@@ -50,11 +78,17 @@ export class AdLibraryScraper {
             logger.info(`🌐 Using proxy: ${proxyUrl}`);
         }
 
-        const browser = await puppeteer.launch({
+        const launchOptions: any = {
             headless: true,
             args: launchArgs,
             defaultViewport: { width: 1280, height: 800 }
-        });
+        };
+
+        if (executablePath) {
+            launchOptions.executablePath = executablePath;
+        }
+
+        const browser = await (puppeteer as any).launch(launchOptions);
 
         try {
             const page = await browser.newPage();
@@ -182,7 +216,7 @@ export class AdLibraryScraper {
                             let maxArea = 0;
 
                             for (const img of images) {
-                                const rect = img.getBoundingClientRect();
+                                const rect = (img as HTMLElement).getBoundingClientRect();
                                 const area = rect.width * rect.height;
                                 // Ignore tiny icons (like spacers or logos < 50x50)
                                 if (area > 2500 && area > maxArea) {
@@ -290,9 +324,9 @@ export class AdLibraryScraper {
                 return { dates, links: allLinks };
             });
 
-            const oldestDates = [...new Set(insightsData.dates)].sort().slice(0, 10);
+            const oldestDates = [...new Set(insightsData.dates as string[])].sort().slice(0, 10);
             const linkCounts: Record<string, number> = {};
-            for (const link of insightsData.links) {
+            for (const link of (insightsData.links as string[])) {
                 try {
                     const url = new URL(link);
                     const baseUrl = url.origin + url.pathname;

@@ -11,7 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "test-puppeteer": "tsx src/test_puppeteer_railway.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
