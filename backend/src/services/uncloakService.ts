@@ -1,11 +1,11 @@
-import puppeteer from 'puppeteer-extra';
+import puppeteerExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { createCursor } from 'ghost-cursor';
 import axios from 'axios';
 import { logger } from '../utils/logger.js';
 
 // @ts-ignore
-puppeteer.use(StealthPlugin());
+puppeteerExtra.use(StealthPlugin());
 
 // --- Types ---
 
@@ -138,7 +138,7 @@ export class UncloakService {
             logger.info(`🌐 Using proxy: ${proxyUrl}`);
         }
 
-        const browser = await puppeteer.launch({
+        const browser = await (puppeteerExtra as any).launch({
             headless: !opts.headful,
             args: launchArgs,
             defaultViewport: null,

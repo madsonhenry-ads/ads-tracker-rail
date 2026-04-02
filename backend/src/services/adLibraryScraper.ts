@@ -1,10 +1,11 @@
-import puppeteer from 'puppeteer-extra';
+import puppeteerExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { logger } from '../utils/logger.js';
 import { Browser, Page as PuppeteerPage } from 'puppeteer';
+import fs from 'fs';
 
 // @ts-ignore
-puppeteer.use(StealthPlugin());
+puppeteerExtra.use(StealthPlugin());
 
 interface AdLibraryScrapeResult {
     pageId: string;
@@ -37,7 +38,7 @@ export class AdLibraryScraper {
      * enhanced with "Hidden Variation" discovery logic.
      */
     async scrapePageAds(pageId: string): Promise<AdLibraryScrapeResult> {
-        logger.info(`🕵️‍♀️ Starting Deep Scrape for page: ${pageId}`);
+        logger.info(`🕵️‍♀️ [Deep Scrape] Iniciando para a página: ${pageId}`);
 
         // Construct URL with filters for maximum visibility
         const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${pageId}&sort_data[mode]=total_impressions&sort_data[direction]=desc&media_type=all`;
@@ -55,7 +56,6 @@ export class AdLibraryScraper {
 
         // Auto-detect Chrome binary for Linux (Railway/Nixpacks)
         if (process.platform === 'linux') {
-            const fs = await import('fs');
             const commonPaths = [
                 '/usr/bin/google-chrome',
                 '/usr/bin/google-chrome-stable',
@@ -66,7 +66,7 @@ export class AdLibraryScraper {
             for (const path of commonPaths) {
                 if (fs.existsSync(path)) {
                     executablePath = path;
-                    logger.info(`🧭 Found system browser at: ${executablePath}`);
+                    logger.info(`🧭 [Deep Scrape] Navegador encontrado em: ${executablePath}`);
                     break;
                 }
             }
@@ -75,7 +75,7 @@ export class AdLibraryScraper {
         if (this.proxyHost) {
             const proxyUrl = `${this.proxyHost}:${this.proxyPort}`;
             launchArgs.push(`--proxy-server=http://${proxyUrl}`);
-            logger.info(`🌐 Using proxy: ${proxyUrl}`);
+            logger.info(`🌐 [Deep Scrape] Usando proxy configurado: ${this.proxyHost}`);
         }
 
         const launchOptions: any = {
@@ -88,30 +88,37 @@ export class AdLibraryScraper {
             launchOptions.executablePath = executablePath;
         }
 
-        const browser = await (puppeteer as any).launch(launchOptions);
+        logger.info(`🎬 [Deep Scrape] Lançando Puppeteer...`);
+        const browser = await (puppeteerExtra as any).launch(launchOptions);
 
         try {
             const page = await browser.newPage();
 
             if (this.proxyUser && this.proxyPass) {
                 await page.authenticate({ username: this.proxyUser, password: this.proxyPass });
+                logger.info(`🔐 [Deep Scrape] Autenticado no proxy`);
             }
 
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
             await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7' });
 
-            logger.info(`🚀 Navigating to Ad Library...`);
-            await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+            logger.info(`🚀 [Deep Scrape] Navegando para Ad Library...`);
+            await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
 
             // Initial wait and verify blockage
+            logger.info(`⏳ [Deep Scrape] Aguardando carregamento inicial (5s)...`);
             await new Promise(r => setTimeout(r, 5000));
+            
             const content = await page.content();
-            if (content.includes('temporarily blocked') || content.includes('Log In')) {
-                logger.warn('⚠️ Potential block detected. Attempting to proceed...');
+            if (content.includes('temporarily blocked') || content.includes('Log In') || content.includes('Entrar')) {
+                logger.warn('⚠️ [Deep Scrape] ALERTA: Facebook detectou acesso ou bloqueio. Continuando tentativa...');
+                // Tenta tirar um print do bloqueio para debug
+                const blockScreen = await page.screenshot({ encoding: 'base64' });
+                // Aqui poderíamos salvar o print se quisesse
             }
 
             // 1. Scroll to load initial batch of ads
-            logger.info('📜 Scrolling to load ads...');
+            logger.info('📜 [Deep Scrape] Rolando página para carregar anúncios...');
             await page.evaluate(async () => {
                 for (let i = 0; i < 5; i++) {
                     window.scrollBy(0, 1000);
@@ -120,7 +127,7 @@ export class AdLibraryScraper {
             });
 
             // 2. Find and Click "See Summary Details" (Ver detalhes do resumo) buttons
-            logger.info('🔍 Looking for hidden variations (See Summary Details)...');
+            logger.info('🔍 [Deep Scrape] Procurando variações ocultas (Ver detalhes do resumo)...');
 
             // Get all summary buttons handles
             const summaryButtons = await page.evaluateHandle(() => {
@@ -134,7 +141,7 @@ export class AdLibraryScraper {
             });
 
             const buttonCount = await page.evaluate(handles => handles.length, summaryButtons);
-            logger.info(`🔘 Found ${buttonCount} grouped ad buttons.`);
+            logger.info(`🔘 [Deep Scrape] Encontrados ${buttonCount} grupos de anúncios.`);
 
             const collectedAds = new Map<string, ScrapedAd>();
 
@@ -255,12 +262,13 @@ export class AdLibraryScraper {
                     collectedAds.set(ad.id, ad);
                 }
             });
+            logger.info(`📄 [Deep Scrape] Carregados ${initialAds.length} anúncios da página principal.`);
 
             // Iterate and click summary buttons
             if (buttonCount > 0) {
-                for (let i = 0; i < Math.min(buttonCount, 10); i++) { // Limit to 10 groups to save time
+                for (let i = 0; i < Math.min(buttonCount, 15); i++) { // Limit to 15 groups
                     try {
-                        logger.info(`🔓 Expanding group ${i + 1}/${buttonCount}...`);
+                        logger.info(`🔓 [Deep Scrape] Expandindo grupo ${i + 1}/${buttonCount}...`);
 
                         // Re-query element because DOM changes might detach handles
                         await page.evaluate((index) => {
@@ -272,25 +280,25 @@ export class AdLibraryScraper {
                             if (btns[index]) (btns[index] as HTMLElement).click();
                         }, i);
 
-                        await new Promise(r => setTimeout(r, 3000)); // Wait for modal
+                        await new Promise(r => setTimeout(r, 4000)); // Wait for modal
 
                         // Scrape IDs from Modal
                         const modalAds = await scrapeAdsDetails();
                         modalAds.forEach(ad => collectedAds.set(ad.id, ad));
-                        logger.info(`   Found ${modalAds.length} ads in this group.`);
+                        logger.info(`   ✨ [Deep Scrape] Encontrados ${modalAds.length} anúncios neste grupo.`);
 
                         // Close Modal (Press Escape)
                         await page.keyboard.press('Escape');
                         await new Promise(r => setTimeout(r, 1000));
 
                     } catch (e) {
-                        logger.warn(`Failed to expand group ${i}: ${e}`);
+                        logger.warn(`⚠️ [Deep Scrape] Falha ao expandir grupo ${i}: ${e}`);
                     }
                 }
             }
 
             // 3. Final Compilation
-            logger.info(`✅ Total Unique IDs found: ${collectedAds.size}`);
+            logger.info(`✅ [Deep Scrape] Total de IDs únicos encontrados: ${collectedAds.size}`);
             const resultArray: ScrapedAd[] = Array.from(collectedAds.values());
 
             // 4. Extract Insights (Top URLs and Oldest Dates)
