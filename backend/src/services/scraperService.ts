@@ -231,6 +231,8 @@ class ScraperService {
                             scrapeDuration: result.duration
                         }
                     });
+
+                    logger.warn(`   ❌ Falha na página ${page.name}: ${result.error}`);
                 }
 
                 // Pausa entre páginas para não sobrecarregar o Apify
