@@ -125,12 +125,12 @@ export const getAllPageAds = async (req: Request, res: Response) => {
 
 export const scrapePageAds = async (req: Request, res: Response) => {
     try {
-        const { pageId } = req.body;
+        const { pageId, country, activeStatus } = req.body;
         if (!pageId) {
             return res.status(400).json({ error: 'pageId is required' });
         }
 
-        const result = await adLibraryScraper.scrapePageAds(pageId);
+        const result = await adLibraryScraper.scrapePageAds(pageId, { country, activeStatus });
         res.json({ success: true, data: result });
     } catch (error: any) {
         logger.error('Error scraping page ads', error);

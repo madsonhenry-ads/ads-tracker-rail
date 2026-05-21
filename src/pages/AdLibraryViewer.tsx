@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
-import { adLibraryApi } from '../services/api'
-import { Search, Globe, ExternalLink, AlertTriangle, Cloud, Download, Clock, Copy, FileText, Filter, ChevronDown, Check, Loader2 } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { adLibraryApi, pagesApi } from '../services/api'
+import type { Page } from '../services/api'
+import { Search, Globe, ExternalLink, AlertTriangle, Cloud, Download, Clock, Copy, FileText, Filter, ChevronDown, Check, Loader2, BookOpen } from 'lucide-react'
 
 
 interface AdVersion {
@@ -28,12 +29,27 @@ export default function AdLibraryViewer() {
     const [method, setMethod] = useState<'api' | 'scraper'>('api')
     const [activeTab, setActiveTab] = useState<'ads' | 'insights'>('ads')
     const [insights, setInsights] = useState<{ topUrls: { url: string; count: number }[]; oldestDates: string[] } | null>(null)
-    
+
     // Novas funcionalidades
     const [sortBy, setSortBy] = useState<SortOption>('recent')
     const [transcribingId, setTranscribingId] = useState<string | null>(null)
     const [transcriptionResult, setTranscriptionResult] = useState<{id: string, text: string} | null>(null)
     const [copiedId, setCopiedId] = useState<string | null>(null)
+
+    // Páginas salvas + filtros
+    const [savedPages, setSavedPages] = useState<Page[]>([])
+    const [selectedPageDbId, setSelectedPageDbId] = useState('')
+    const [activeStatus, setActiveStatus] = useState<'active' | 'inactive' | 'all'>('active')
+
+    useEffect(() => {
+        pagesApi.getAll().then(res => {
+            if (res.data.success) {
+                setSavedPages(res.data.data)
+            }
+        }).catch(err => {
+            console.error('Erro ao carregar páginas salvas:', err)
+        })
+    }, [])
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -48,7 +64,7 @@ export default function AdLibraryViewer() {
         setActiveTab('ads')
 
         try {
-            const response = await adLibraryApi.getAllPageAds(pageId, { country })
+            const response = await adLibraryApi.getAllPageAds(pageId, { country, status: activeStatus })
 
             if (!response.data || !response.data.data) {
                 throw new Error('Invalid API response structure')
@@ -91,7 +107,7 @@ export default function AdLibraryViewer() {
         setActiveTab('ads')
 
         try {
-            const response = await adLibraryApi.scrapePageAds(pageId)
+            const response = await adLibraryApi.scrapePageAds(pageId, { country, activeStatus })
             const result = response.data.data
             setTotalFound(result.totalAdsFound)
 
@@ -101,7 +117,7 @@ export default function AdLibraryViewer() {
                 thumbnailUrl: ad.thumbnail_url,
                 ad_snapshot_url: ad.ad_snapshot_url,
                 detailsUrl: ad.ad_snapshot_url,
-                creative_body: '', // Scraper might not extract this easily in bulk
+                creative_body: ad.creative_body || '',
             })))
 
             if (result.insights) {
@@ -194,6 +210,34 @@ export default function AdLibraryViewer() {
                         </div>
                     </div>
 
+                    {/* Seletor de páginas salvas */}
+                    <div className="w-64 space-y-2">
+                        <label className="text-sm font-medium text-dark-300">Página Salva</label>
+                        <select
+                            title="Selecionar Página"
+                            aria-label="Selecionar Página"
+                            value={selectedPageDbId}
+                            onChange={(e) => {
+                                const val = e.target.value
+                                setSelectedPageDbId(val)
+                                if (val) {
+                                    const page = savedPages.find(p => p.id === val)
+                                    if (page) {
+                                        setPageId(page.facebookPageId)
+                                    }
+                                }
+                            }}
+                            className="w-full bg-dark-900/50 border border-dark-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50 transition-colors appearance-none cursor-pointer"
+                        >
+                            <option value="">-- Selecione --</option>
+                            {savedPages.map(p => (
+                                <option key={p.id} value={p.id}>
+                                    {p.name} ({p.facebookPageId})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div className="w-32 space-y-2">
                         <label className="text-sm font-medium text-dark-300">Country</label>
                         <select
@@ -209,6 +253,22 @@ export default function AdLibraryViewer() {
                             <option value="CA">🇨🇦 CA</option>
                             <option value="GB">🇬🇧 UK</option>
                             <option value="AU">🇦🇺 AU</option>
+                        </select>
+                    </div>
+
+                    {/* Filtro de Status */}
+                    <div className="w-36 space-y-2">
+                        <label className="text-sm font-medium text-dark-300">Status</label>
+                        <select
+                            title="Active Status"
+                            aria-label="Active Status"
+                            value={activeStatus}
+                            onChange={(e) => setActiveStatus(e.target.value as 'active' | 'inactive' | 'all')}
+                            className="w-full bg-dark-900/50 border border-dark-700 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50 transition-colors appearance-none cursor-pointer"
+                        >
+                            <option value="active">✅ Ativos</option>
+                            <option value="inactive">❌ Inativos</option>
+                            <option value="all">📋 Todos</option>
                         </select>
                     </div>
 

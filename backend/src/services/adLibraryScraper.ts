@@ -1,7 +1,6 @@
 import puppeteerExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { logger } from '../utils/logger.js';
-import { Browser, Page as PuppeteerPage } from 'puppeteer';
 import fs from 'fs';
 
 // @ts-ignore
@@ -24,6 +23,12 @@ interface ScrapedAd {
     ad_snapshot_url?: string;
     thumbnail_url?: string;
     isActive?: boolean;
+    creative_body?: string;
+}
+
+interface ScrapeOptions {
+    country?: string;
+    activeStatus?: 'active' | 'inactive' | 'all';
 }
 
 export class AdLibraryScraper {
@@ -35,17 +40,23 @@ export class AdLibraryScraper {
 
     /**
      * Scrapes the Facebook Ad Library for a specific page using Puppeteer
-     * enhanced with "Hidden Variation" discovery logic.
      */
-    async scrapePageAds(pageId: string): Promise<AdLibraryScrapeResult> {
-        logger.info(`🕵️‍♀️ [Deep Scrape] Iniciando para a página: ${pageId}`);
+    async scrapePageAds(pageId: string, options: ScrapeOptions = {}): Promise<AdLibraryScrapeResult> {
+        const {
+            country = 'ALL',
+            activeStatus = 'active',
+        } = options;
 
-        // Construct URL with filters for maximum visibility
-        const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&view_all_page_id=${pageId}&sort_data[mode]=total_impressions&sort_data[direction]=desc&media_type=all`;
+        logger.info(`🕵️‍♀️ [Deep Scrape] Iniciando para página: ${pageId} (country: ${country}, status: ${activeStatus})`);
+
+        // Map activeStatus to URL param value
+        const activeParam = activeStatus === 'all' ? 'all' : activeStatus;
+
+        const url = `https://www.facebook.com/ads/library/?active_status=${activeParam}&ad_type=all&country=${country}&view_all_page_id=${pageId}&sort_data[mode]=total_impressions&sort_data[direction]=desc&media_type=all`;
 
         const launchArgs = [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox', 
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
             '--disable-blink-features=AutomationControlled',
             '--disable-gpu',
             '--disable-dev-shm-usage',
@@ -62,7 +73,7 @@ export class AdLibraryScraper {
                 '/usr/bin/chromium-browser',
                 '/usr/bin/chromium'
             ];
-            
+
             for (const path of commonPaths) {
                 if (fs.existsSync(path)) {
                     executablePath = path;
@@ -105,204 +116,217 @@ export class AdLibraryScraper {
             logger.info(`🚀 [Deep Scrape] Navegando para Ad Library...`);
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
 
-            // Initial wait and verify blockage
+            // Initial wait for content to render
             logger.info(`⏳ [Deep Scrape] Aguardando carregamento inicial (5s)...`);
             await new Promise(r => setTimeout(r, 5000));
-            
-            const content = await page.content();
-            if (content.includes('temporarily blocked') || content.includes('Log In') || content.includes('Entrar')) {
-                logger.warn('⚠️ [Deep Scrape] ALERTA: Facebook detectou acesso ou bloqueio. Continuando tentativa...');
-                // Tenta tirar um print do bloqueio para debug
+
+            // Check for blockage / login wall
+            const pageContent = await page.content();
+            const lowerContent = pageContent.toLowerCase();
+            if (lowerContent.includes('temporarily blocked') || lowerContent.includes('log in') || lowerContent.includes('entrar')) {
+                logger.warn('⚠️ [Deep Scrape] Facebook detectou acesso ou bloqueio. Continuando tentativa...');
                 const blockScreen = await page.screenshot({ encoding: 'base64' });
-                // Aqui poderíamos salvar o print se quisesse
+                // Continue anyway — sometimes data is still rendered behind the overlay
             }
 
-            // 1. Scroll to load initial batch of ads
+            // Scroll to load more ads — increase from 5 to 10 scrolls
             logger.info('📜 [Deep Scrape] Rolando página para carregar anúncios...');
             await page.evaluate(async () => {
-                for (let i = 0; i < 5; i++) {
-                    window.scrollBy(0, 1000);
-                    await new Promise(r => setTimeout(r, 1000));
+                const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+                for (let i = 0; i < 10; i++) {
+                    window.scrollBy(0, 1200);
+                    await delay(1500);
                 }
             });
 
-            // 2. Find and Click "See Summary Details" (Ver detalhes do resumo) buttons
-            logger.info('🔍 [Deep Scrape] Procurando variações ocultas (Ver detalhes do resumo)...');
-
-            // Get all summary buttons handles
-            const summaryButtons = await page.evaluateHandle(() => {
-                return Array.from(document.querySelectorAll('div[role="button"], span[role="button"]'))
-                    .filter(el => {
-                        const text = el.textContent?.toLowerCase() || '';
-                        return text.includes('ver detalhes do resumo') ||
-                            text.includes('see summary details') ||
-                            text.includes('ver resumo');
-                    });
-            });
-
-            const buttonCount = await page.evaluate(handles => handles.length, summaryButtons);
-            logger.info(`🔘 [Deep Scrape] Encontrados ${buttonCount} grupos de anúncios.`);
+            // --- Extract ads using link-based approach (more resilient) ---
+            logger.info('🔍 [Deep Scrape] Extraindo IDs de anúncios da página...');
 
             const collectedAds = new Map<string, ScrapedAd>();
 
-            // Helper to scrape visible Ads with Details (Date, Image)
-            const scrapeAdsDetails = async (): Promise<ScrapedAd[]> => {
-                return page.evaluate(() => {
-                    const ads: any[] = [];
-                    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-                    let node;
-                    while (node = walker.nextNode()) {
-                        const text = node.textContent || '';
-                        // Matches "ID: 12345"
-                        const match = text.match(/(?:ID|Identificação|Biblioteca)[:\s]+(\d{10,})/i);
+            // Extract ad data by looking for ad library links in the DOM
+            const extractedAds = await page.evaluate(() => {
+                const ads: ScrapedAd[] = [];
 
-                        if (match) {
-                            const id = match[1];
-                            let container = node.parentElement;
-                            let cardRoot = container;
+                // Find all links pointing to ads/library/?id=
+                const allLinks = Array.from(document.querySelectorAll('a[href*="ads/library"]'));
+                const seenIds = new Set<string>();
+                const adLinks = allLinks.filter(link => {
+                    const href = link.getAttribute('href') || '';
+                    const match = href.match(/[?&]id=(\d{9,})/);
+                    if (match && !seenIds.has(match[1])) {
+                        seenIds.add(match[1]);
+                        return true;
+                    }
+                    return false;
+                });
 
-                            // Traverse up to find the ad card container
-                            // Usually ~5-7 levels up is the main card wrapper
-                            // We look for a container that has substantial height or specific structure
-                            for (let i = 0; i < 7; i++) {
-                                if (cardRoot?.parentElement) cardRoot = cardRoot.parentElement;
-                            }
+                // For each unique ad link, walk up to find the card container and extract metadata
+                for (const link of adLinks) {
+                    const href = link.getAttribute('href') || '';
+                    const idMatch = href.match(/[?&]id=(\d{9,})/);
+                    if (!idMatch) continue;
 
-                            if (!cardRoot) continue;
+                    const id = idMatch[1];
+                    let container = link.closest('div[role="article"]') || link.closest('[data-pagelet]') || link.parentElement;
 
-                            // 1. Extract Date
-                            let startDate = '';
-                            // Added "Veiculação iniciada em" and broader match for PT/ES/EN
-                            const dateRegex = /(?:Started running on|Veiculação iniciada em|Veiculado a partir de|En circulación desde|Ativo desde|Active since)[\s:]+([^•\n]+)/i;
-                            const innerText = cardRoot.innerText || '';
-                            const dateMatch = innerText.match(dateRegex);
-
-                            if (dateMatch) {
-                                const rawDate = dateMatch[1].trim(); // e.g. "29 de jan de 2026"
-
-                                // Helper to parse PT/EN dates to YYYY-MM-DD
-                                try {
-                                    // Remove "de " or "," and split
-                                    const cleanParts = rawDate.replace(/,|de /g, ' ').split(/\s+/).filter(p => p);
-                                    if (cleanParts.length >= 3) {
-                                        const day = parseInt(cleanParts[0]);
-                                        const monthStr = cleanParts[1].toLowerCase().substring(0, 3);
-                                        const year = parseInt(cleanParts[2]);
-
-                                        const monthMap: { [key: string]: number } = {
-                                            'jan': 0, 'fev': 1, 'feb': 1, 'mar': 2, 'abr': 3, 'apr': 3,
-                                            'mai': 4, 'may': 4, 'jun': 5, 'jul': 6, 'ago': 7, 'aug': 7,
-                                            'set': 8, 'sep': 8, 'out': 9, 'oct': 9, 'nov': 10, 'dez': 11, 'dec': 11
-                                        };
-
-                                        if (!isNaN(day) && !isNaN(year) && monthMap.hasOwnProperty(monthStr)) {
-                                            const dateObj = new Date(year, monthMap[monthStr], day);
-                                            // Handle local time to ISO date part
-                                            const offset = dateObj.getTimezoneOffset() * 60000;
-                                            const localISODate = new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
-                                            startDate = localISODate;
-                                        } else {
-                                            // Fallback for standard formats if JS can parse it directly
-                                            const directParse = new Date(rawDate);
-                                            if (!isNaN(directParse.getTime())) {
-                                                startDate = directParse.toISOString();
-                                            }
-                                        }
-                                    }
-                                } catch (e) {
-                                    // Keep empty or raw if parse fails
-                                }
-                            }
-
-                            // 2. Extract Image
-                            let thumbnailUrl = '';
-                            // Try to find the main ad image
-                            // Usually the largest image in the card
-                            const images = Array.from(cardRoot.querySelectorAll('img'));
-                            let bestImg = null;
-                            let maxArea = 0;
-
-                            for (const img of images) {
-                                const rect = (img as HTMLElement).getBoundingClientRect();
-                                const area = rect.width * rect.height;
-                                // Ignore tiny icons (like spacers or logos < 50x50)
-                                if (area > 2500 && area > maxArea) {
-                                    maxArea = area;
-                                    bestImg = img;
-                                }
-                            }
-
-                            if (bestImg) {
-                                thumbnailUrl = (bestImg as HTMLImageElement).src;
+                    // If no article/parent container, walk up manually
+                    if (!container || container === document.body) {
+                        container = link;
+                        for (let i = 0; i < 8; i++) {
+                            if (container?.parentElement && container.parentElement !== document.body) {
+                                container = container.parentElement;
                             } else {
-                                // Fallback: try video poster
-                                const video = cardRoot.querySelector('video');
-                                if (video && video.poster) {
-                                    thumbnailUrl = video.poster;
-                                }
+                                break;
                             }
-
-                            ads.push({
-                                id,
-                                ad_delivery_start_time: startDate,
-                                ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
-                                thumbnail_url: thumbnailUrl,
-                                isActive: true
-                            });
                         }
                     }
-                    return ads;
-                });
-            };
 
-            // Scrape main page first
-            const initialAds = await scrapeAdsDetails();
-            initialAds.forEach(ad => {
+                    const cardText = container?.textContent || '';
+
+                    // Extract start date
+                    let startDate = '';
+                    const datePatterns = [
+                        /(?:Started running on|Veiculação iniciada em|Veiculado a partir de|En circulación desde|Ativo desde|Active since|Começou a ser veiculado em)[:\s]+([^•\n]+)/i,
+                        /(?:Data de início|Start date)[:\s]+([^•\n]+)/i,
+                    ];
+
+                    for (const pattern of datePatterns) {
+                        const match = cardText.match(pattern);
+                        if (match) {
+                            const rawDate = match[1].trim();
+                            try {
+                                const cleanParts = rawDate.replace(/,|de /g, ' ').split(/\s+/).filter(p => p);
+                                if (cleanParts.length >= 3) {
+                                    const day = parseInt(cleanParts[0]);
+                                    const monthStr = cleanParts[1].toLowerCase().substring(0, 3);
+                                    const year = parseInt(cleanParts[2]);
+
+                                    const monthMap: { [key: string]: number } = {
+                                        'jan': 0, 'fev': 1, 'feb': 1, 'mar': 2, 'abr': 3, 'apr': 3,
+                                        'mai': 4, 'may': 4, 'jun': 5, 'jul': 6, 'ago': 7, 'aug': 7,
+                                        'set': 8, 'sep': 8, 'out': 9, 'oct': 9, 'nov': 10, 'dez': 11, 'dec': 11
+                                    };
+
+                                    if (!isNaN(day) && !isNaN(year) && monthMap.hasOwnProperty(monthStr)) {
+                                        const dateObj = new Date(year, monthMap[monthStr], day);
+                                        const offset = dateObj.getTimezoneOffset() * 60000;
+                                        startDate = new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
+                                    } else {
+                                        const directParse = new Date(rawDate);
+                                        if (!isNaN(directParse.getTime())) {
+                                            startDate = directParse.toISOString();
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                // ignore parse errors
+                            }
+                            break;
+                        }
+                    }
+
+                    // Extract thumbnail (largest image in card)
+                    let thumbnailUrl = '';
+                    if (container) {
+                        const images = Array.from(container.querySelectorAll('img'));
+                        let bestImg: HTMLImageElement | null = null;
+                        let maxArea = 0;
+
+                        for (const img of images) {
+                            // Filter out tiny icons / profile pics
+                            const w = img.naturalWidth || (img as any).width || 0;
+                            const h = img.naturalHeight || (img as any).height || 0;
+                            const area = w * h;
+                            if (area > 2500 && area > maxArea) {
+                                maxArea = area;
+                                bestImg = img;
+                            }
+                        }
+
+                        // Fallback: check for video poster
+                        if (bestImg) {
+                            thumbnailUrl = bestImg.src;
+                        } else {
+                            const video = container.querySelector('video');
+                            if (video && video.poster) {
+                                thumbnailUrl = video.poster;
+                            }
+                        }
+                    }
+
+                    // Extract creative body text (look for paragraphs with substantial text)
+                    let creativeBody = '';
+                    if (container) {
+                        const textElements = Array.from(container.querySelectorAll('p, span, div'));
+                        for (const el of textElements) {
+                            const text = (el as HTMLElement).innerText?.trim();
+                            if (text && text.length > 20 && text.length < 500) {
+                                // Skip known non-creative text patterns
+                                if (!text.startsWith('http') && !text.includes('ID:') && !text.match(/^\d+$/) && !text.includes('Started running') && !text.includes('Veiculação')) {
+                                    creativeBody = text;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    ads.push({
+                        id,
+                        ad_delivery_start_time: startDate,
+                        ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
+                        thumbnail_url: thumbnailUrl,
+                        isActive: true,
+                        creative_body: creativeBody,
+                    });
+                }
+
+                return ads;
+            });
+
+            // Deduplicate by ID
+            for (const ad of extractedAds) {
                 if (!collectedAds.has(ad.id)) {
                     collectedAds.set(ad.id, ad);
                 }
-            });
-            logger.info(`📄 [Deep Scrape] Carregados ${initialAds.length} anúncios da página principal.`);
-
-            // Iterate and click summary buttons
-            if (buttonCount > 0) {
-                for (let i = 0; i < Math.min(buttonCount, 15); i++) { // Limit to 15 groups
-                    try {
-                        logger.info(`🔓 [Deep Scrape] Expandindo grupo ${i + 1}/${buttonCount}...`);
-
-                        // Re-query element because DOM changes might detach handles
-                        await page.evaluate((index) => {
-                            const btns = Array.from(document.querySelectorAll('div[role="button"], span[role="button"]'))
-                                .filter(el => {
-                                    const text = el.textContent?.toLowerCase() || '';
-                                    return text.includes('ver detalhes') || text.includes('see summary');
-                                });
-                            if (btns[index]) (btns[index] as HTMLElement).click();
-                        }, i);
-
-                        await new Promise(r => setTimeout(r, 4000)); // Wait for modal
-
-                        // Scrape IDs from Modal
-                        const modalAds = await scrapeAdsDetails();
-                        modalAds.forEach(ad => collectedAds.set(ad.id, ad));
-                        logger.info(`   ✨ [Deep Scrape] Encontrados ${modalAds.length} anúncios neste grupo.`);
-
-                        // Close Modal (Press Escape)
-                        await page.keyboard.press('Escape');
-                        await new Promise(r => setTimeout(r, 1000));
-
-                    } catch (e) {
-                        logger.warn(`⚠️ [Deep Scrape] Falha ao expandir grupo ${i}: ${e}`);
-                    }
-                }
             }
 
-            // 3. Final Compilation
-            logger.info(`✅ [Deep Scrape] Total de IDs únicos encontrados: ${collectedAds.size}`);
-            const resultArray: ScrapedAd[] = Array.from(collectedAds.values());
+            logger.info(`📄 [Deep Scrape] Encontrados ${collectedAds.size} anúncios via links.`);
 
-            // 4. Extract Insights (Top URLs and Oldest Dates)
-            logger.info('📊 Extracting Insights...');
+            // If link extraction found nothing, try fallback raw text scanning
+            if (collectedAds.size === 0) {
+                logger.info('⚠️ [Deep Scrape] Nenhum anúncio encontrado via links. Tentando fallback de texto...');
+                const textAds = await page.evaluate(() => {
+                    const found: ScrapedAd[] = [];
+                    const bodyText = document.body.innerText || '';
+                    // Look for ID patterns in plain text
+                    const idRegex = /(?:ID|Identificação)[:\s]+(\d{9,})/gi;
+                    let match;
+                    const seen = new Set<string>();
+                    while ((match = idRegex.exec(bodyText)) !== null) {
+                        const id = match[1];
+                        if (!seen.has(id)) {
+                            seen.add(id);
+                            found.push({
+                                id,
+                                ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
+                                isActive: true,
+                            });
+                        }
+                    }
+                    return found;
+                });
+
+                for (const ad of textAds) {
+                    if (!collectedAds.has(ad.id)) {
+                        collectedAds.set(ad.id, ad);
+                    }
+                }
+                logger.info(`📄 [Deep Scrape] Fallback encontrou mais ${textAds.length} anúncios. Total: ${collectedAds.size}`);
+            }
+
+            // --- Extract Insights (Top URLs and Oldest Dates) ---
+            logger.info('📊 [Deep Scrape] Extraindo insights...');
             const insightsData = await page.evaluate(() => {
                 const dateElements = Array.from(document.querySelectorAll('span')).filter(el =>
                     el.innerText.includes('Started running on') ||
@@ -340,7 +364,7 @@ export class AdLibraryScraper {
                     const baseUrl = url.origin + url.pathname;
                     linkCounts[baseUrl] = (linkCounts[baseUrl] || 0) + 1;
                 } catch (e) {
-                    // ignore
+                    // ignore invalid URLs
                 }
             }
             const topUrls = Object.entries(linkCounts)
@@ -350,6 +374,10 @@ export class AdLibraryScraper {
 
             // Take screenshot for debug
             const screenshot = await page.screenshot({ encoding: 'base64' });
+
+            const resultArray: ScrapedAd[] = Array.from(collectedAds.values());
+
+            logger.info(`✅ [Deep Scrape] Finalizado. Total: ${resultArray.length} anúncios, ${topUrls.length} URLs de destino.`);
 
             return {
                 pageId,
@@ -363,13 +391,10 @@ export class AdLibraryScraper {
             };
 
         } catch (error: any) {
-            logger.error(`❌ Deep Scraping failed: ${error.message}`);
+            logger.error(`❌ [Deep Scrape] Falha: ${error.message}`);
             console.error('SCRAPE_ERROR_STACK:', error);
-            // Write to file for debugging
             try {
-                const fs = await import('fs');
-                const path = await import('path');
-                const debugPath = path.join(process.cwd(), 'scrape_debug_absolute.txt');
+                const debugPath = require('path').join(process.cwd(), 'scrape_debug_absolute.txt');
                 fs.writeFileSync(debugPath, `Error at ${new Date().toISOString()}:\n${error.stack || error.message}\n`);
             } catch (fsError) {
                 console.error('Failed to write error log', fsError);
