@@ -126,5 +126,6 @@ export const adLibraryApi = {
     getAllPageAds: (pageId: string, params?: { country?: string; status?: string }) =>
         api.get<{ success: boolean; data: any }>(`/tools/ads/${pageId}/all`, { params }),
     scrapePageAds: (pageId: string, params?: { country?: string; activeStatus?: string }) => api.post<{ success: boolean; data: any }>('/tools/ads/scrape', { pageId, ...params }),
+    scrapePageAdsApify: (pageId: string, params?: { country?: string; activeStatus?: string }) => api.post<{ success: boolean; data: any }>('/tools/ads/apify', { pageId, ...params }),
     transcribeVideo: (videoUrl: string) => api.post<{ success: boolean; text: string }>('/tools/ads/transcribe', { videoUrl }),
 }

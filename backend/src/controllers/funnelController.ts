@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { funnelService } from '../services/funnelService.js';
 import { uncloakService } from '../services/uncloakService.js';
-import { adLibraryService } from '../services/adLibraryService.js';
+import { adLibraryService, scrapePageAdsApify } from '../services/adLibraryService.js';
 import { adLibraryScraper } from '../services/adLibraryScraper.js';
 import { transcriptionService } from '../services/transcriptionService.js';
 import { logger } from '../utils/logger.js';
@@ -134,6 +134,21 @@ export const scrapePageAds = async (req: Request, res: Response) => {
         res.json({ success: true, data: result });
     } catch (error: any) {
         logger.error('Error scraping page ads', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const scrapePageAdsApifyCtrl = async (req: Request, res: Response) => {
+    try {
+        const { pageId, country, activeStatus } = req.body;
+        if (!pageId) {
+            return res.status(400).json({ error: 'pageId is required' });
+        }
+
+        const result = await scrapePageAdsApify(pageId, { country, activeStatus });
+        res.json({ success: true, data: result });
+    } catch (error: any) {
+        logger.error('Error scraping page ads via Apify', error);
         res.status(500).json({ error: error.message });
     }
 };

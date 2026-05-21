@@ -23,10 +23,11 @@ export default function AdLibraryViewer() {
     const [country, setCountry] = useState('US')
     const [loading, setLoading] = useState(false)
     const [scrapping, setScrapping] = useState(false)
+    const [apifyLoading, setApifyLoading] = useState(false)
     const [ads, setAds] = useState<AdVersion[]>([])
     const [error, setError] = useState('')
     const [totalFound, setTotalFound] = useState(0)
-    const [method, setMethod] = useState<'api' | 'scraper'>('api')
+    const [method, setMethod] = useState<'api' | 'scraper' | 'apify'>('api')
     const [activeTab, setActiveTab] = useState<'ads' | 'insights'>('ads')
     const [insights, setInsights] = useState<{ topUrls: { url: string; count: number }[]; oldestDates: string[] } | null>(null)
 
@@ -140,6 +141,45 @@ export default function AdLibraryViewer() {
         } finally {
             clearTimeout(timeoutId)
             setScrapping(false)
+        }
+    }
+
+    const handleApifyScrape = async () => {
+        if (!pageId) return
+
+        setApifyLoading(true)
+        setError('')
+        setAds([])
+        setTotalFound(0)
+        setInsights(null)
+        setMethod('apify')
+        setActiveTab('ads')
+        setHasSearched(true)
+
+        try {
+            const response = await adLibraryApi.scrapePageAdsApify(pageId, { country, activeStatus })
+            const result = response.data.data
+            setTotalFound(result.totalAdsFound)
+
+            if (!result.ads || result.ads.length === 0) {
+                setError('Nenhum anúncio encontrado via Apify. Verifique se a página realmente tem anúncios ativos.')
+            }
+
+            setAds(result.ads.map((ad: any) => ({
+                id: ad.id,
+                startDate: ad.ad_delivery_start_time,
+                thumbnailUrl: ad.thumbnail_url || ad.thumbnail,
+                ad_snapshot_url: ad.ad_snapshot_url,
+                detailsUrl: ad.ad_snapshot_url,
+                creative_body: ad.ad_creative_body || '',
+                page_name: ad.page_name,
+                platforms: ad.publisher_platforms,
+            })))
+        } catch (err: any) {
+            const errorMsg = err.response?.data?.error || err.message || 'Apify Scraper Failed'
+            setError(`Apify Error: ${errorMsg}`)
+        } finally {
+            setApifyLoading(false)
         }
     }
 
@@ -297,8 +337,21 @@ export default function AdLibraryViewer() {
                     </button>
 
                     <button
+                        onClick={handleApifyScrape}
+                        disabled={loading || scrapping || apifyLoading}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {apifyLoading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Cloud className="w-5 h-5" />
+                        )}
+                        Apify Scraper
+                    </button>
+
+                    <button
                         onClick={handleScrape}
-                        disabled={loading || scrapping}
+                        disabled={loading || scrapping || apifyLoading}
                         className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
                     >
                         {scrapping ? (

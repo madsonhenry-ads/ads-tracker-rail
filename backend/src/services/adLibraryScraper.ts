@@ -92,7 +92,7 @@ export class AdLibraryScraper {
         const launchOptions: any = {
             headless: true,
             args: launchArgs,
-            defaultViewport: { width: 1280, height: 800 }
+            defaultViewport: { width: 1920, height: 1080 }
         };
 
         if (executablePath) {
@@ -112,6 +112,14 @@ export class AdLibraryScraper {
 
             await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
             await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7' });
+
+            // Bypass webdriver detection
+            await page.evaluateOnNewDocument(() => {
+                // @ts-ignore
+                delete Object.getPrototypeOf(navigator).webdriver;
+                // @ts-ignore
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            });
 
             logger.info(`🚀 [Deep Scrape] Navegando para Ad Library...`);
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
@@ -174,8 +182,8 @@ export class AdLibraryScraper {
                 const scriptData = await page.evaluate(() => {
                     const results: string[] = [];
                     const scripts = document.querySelectorAll('script:not([src])');
-                    for (const script of scripts) {
-                        const text = script.textContent || '';
+                    for (let si = 0; si < scripts.length; si++) {
+                        const text = (scripts[si] as HTMLScriptElement).textContent || '';
                         // Look for ad ID patterns in JSON data
                         const matches = text.match(/"id"\s*:\s*"(\d{9,})"/g);
                         if (matches) {
@@ -188,7 +196,7 @@ export class AdLibraryScraper {
                     return results;
                 });
 
-                const uniqueScriptIds = [...new Set(scriptData)];
+                const uniqueScriptIds = [...new Set(scriptData)] as string[];
                 logger.info(`📄 [Deep Scrape] Script tags: ${uniqueScriptIds.length} IDs encontrados.`);
                 for (const id of uniqueScriptIds) {
                     if (!collectedAds.has(id)) {
@@ -217,7 +225,7 @@ export class AdLibraryScraper {
                 const seenIds = new Set<string>();
 
                 for (const selector of selectors) {
-                    const elements = document.querySelectorAll(selector);
+                    const elements = Array.from(document.querySelectorAll(selector));
                     for (const el of elements) {
                         const href = el.getAttribute('href') || (el as any).href || '';
                         const match = href.match(/[?&]id=(\d{9,})/);
@@ -276,12 +284,12 @@ export class AdLibraryScraper {
                             // Extract thumbnail
                             let thumbnailUrl = '';
                             if (container) {
-                                const images = Array.from(container.querySelectorAll('img'));
-                                let bestImg: HTMLImageElement | null = null;
+                                const images: any[] = Array.from(container.querySelectorAll('img'));
+                                let bestImg: any = null;
                                 let maxArea = 0;
                                 for (const img of images) {
-                                    const w = img.naturalWidth || (img as any).width || 0;
-                                    const h = img.naturalHeight || (img as any).height || 0;
+                                    const w = img.naturalWidth || img.width || 0;
+                                    const h = img.naturalHeight || img.height || 0;
                                     const area = w * h;
                                     if (area > 2500 && area > maxArea) { maxArea = area; bestImg = img; }
                                 }

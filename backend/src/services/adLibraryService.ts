@@ -207,3 +207,133 @@ export class AdLibraryService {
 }
 
 export const adLibraryService = new AdLibraryService();
+
+// --- Apify-based individual ad scraping ---
+
+interface ApifyAdItem {
+    id?: string;
+    adId?: string;
+    ad_snapshot_url?: string;
+    ad_creative_body?: string;
+    ad_creative_link_title?: string;
+    ad_creative_link_description?: string;
+    ad_delivery_start_time?: string;
+    ad_delivery_stop_time?: string;
+    page_id?: string;
+    page_name?: string;
+    publisher_platforms?: string[];
+    thumbnail_url?: string;
+    thumbnail?: string;
+    video_url?: string;
+    [key: string]: any;
+}
+
+interface ApifyScrapeResult {
+    pageId: string;
+    totalAdsFound: number;
+    ads: ApifyAdItem[];
+}
+
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+export async function scrapePageAdsApify(
+    pageId: string,
+    options: { country?: string; activeStatus?: string } = {}
+): Promise<ApifyScrapeResult> {
+    const apifyToken = process.env.APIFY_TOKEN;
+    if (!apifyToken) {
+        throw new Error('APIFY_TOKEN not configured — add APIFY_TOKEN to Railway environment variables');
+    }
+
+    const { country = 'ALL', activeStatus = 'active' } = options;
+
+    logger.info(`🤖 [Apify] Iniciando scraper para página ${pageId} (country: ${country}, status: ${activeStatus})`);
+
+    const adsLibraryUrl = `https://www.facebook.com/ads/library/?active_status=${activeStatus}&ad_type=all&country=${country}&view_all_page_id=${pageId}&sort_data[mode]=total_impressions&sort_data[direction]=desc&media_type=all`;
+
+    // 1. Start Apify run
+    const runResponse = await fetch(
+        `https://api.apify.com/v2/acts/curious_coder~facebook-ads-library-scraper/runs?token=${apifyToken}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                urls: [{ url: adsLibraryUrl }],
+                count: 200,
+                scrapePageAds: {
+                    activeStatus: activeStatus === 'all' ? 'all' : activeStatus,
+                    countryCode: country,
+                    sortBy: 'impressions_desc'
+                },
+                proxy: { useApifyProxy: true, apifyProxyGroups: ['RESIDENTIAL'] }
+            })
+        }
+    );
+
+    if (!runResponse.ok) {
+        const errText = await runResponse.text();
+        throw new Error(`Apify failed to start: ${runResponse.status} — ${errText}`);
+    }
+
+    const runData = await runResponse.json() as any;
+    const runId = runData.data?.id;
+    const datasetId = runData.data?.defaultDatasetId;
+    if (!runId) throw new Error('Apify did not return a run ID');
+
+    logger.info(`   ✅ [Apify] Run started: ${runId} | Dataset: ${datasetId}`);
+
+    // 2. Poll until completion (max 5 minutes)
+    let status = 'RUNNING';
+    let pollAttempts = 0;
+    const maxPollAttempts = 60;
+
+    while ((status === 'RUNNING' || status === 'READY') && pollAttempts < maxPollAttempts) {
+        await delay(5000);
+        pollAttempts++;
+
+        const statusResp = await fetch(
+            `https://api.apify.com/v2/actor-runs/${runId}?token=${apifyToken}`
+        );
+
+        if (!statusResp.ok) continue;
+
+        const statusData = await statusResp.json() as any;
+        status = statusData.data?.status || 'UNKNOWN';
+        logger.info(`   ⏳ [Apify] Status: ${status} (${pollAttempts * 5}s)`);
+    }
+
+    if (status !== 'SUCCEEDED') {
+        throw new Error(`Apify run ended with status: ${status}`);
+    }
+
+    // 3. Fetch results
+    const resultsResp = await fetch(
+        `https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyToken}&limit=500`
+    );
+    const items = await resultsResp.json() as ApifyAdItem[];
+    const allAds = Array.isArray(items) ? items : [];
+
+    logger.info(`✅ [Apify] Página ${pageId}: ${allAds.length} anúncios encontrados`);
+
+    // Normalize ad fields — Apify can return different field names
+    const ads = allAds.map((item: ApifyAdItem) => ({
+        id: item.id || item.adId || '',
+        ad_creative_body: item.ad_creative_body || '',
+        ad_creative_link_title: item.ad_creative_link_title || '',
+        ad_creative_link_description: item.ad_creative_link_description || '',
+        ad_delivery_start_time: item.ad_delivery_start_time || '',
+        ad_delivery_stop_time: item.ad_delivery_stop_time || '',
+        ad_snapshot_url: item.ad_snapshot_url || `https://www.facebook.com/ads/library/?id=${item.id || item.adId}`,
+        thumbnail_url: item.thumbnail_url || item.thumbnail || '',
+        video_url: item.video_url || '',
+        publisher_platforms: item.publisher_platforms || [],
+        page_id: item.page_id || pageId,
+        page_name: item.page_name || '',
+    }));
+
+    return {
+        pageId,
+        totalAdsFound: ads.length,
+        ads,
+    };
+}
