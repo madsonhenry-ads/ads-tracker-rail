@@ -40,6 +40,7 @@ export default function AdLibraryViewer() {
     const [savedPages, setSavedPages] = useState<Page[]>([])
     const [selectedPageDbId, setSelectedPageDbId] = useState('')
     const [activeStatus, setActiveStatus] = useState<'active' | 'inactive' | 'all'>('active')
+    const [hasSearched, setHasSearched] = useState(false)
 
     useEffect(() => {
         pagesApi.getAll().then(res => {
@@ -62,6 +63,7 @@ export default function AdLibraryViewer() {
         setInsights(null)
         setMethod('api')
         setActiveTab('ads')
+        setHasSearched(true)
 
         try {
             const response = await adLibraryApi.getAllPageAds(pageId, { country, status: activeStatus })
@@ -105,11 +107,20 @@ export default function AdLibraryViewer() {
         setInsights(null)
         setMethod('scraper')
         setActiveTab('ads')
+        setHasSearched(true)
+
+        // Timeout de 180s para o Deep Scrape
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 180000)
 
         try {
             const response = await adLibraryApi.scrapePageAds(pageId, { country, activeStatus })
             const result = response.data.data
             setTotalFound(result.totalAdsFound)
+
+            if (!result.ads || result.ads.length === 0) {
+                setError('Nenhum anúncio encontrado. O Facebook pode ter bloqueado o scraper ou a página não possui anúncios ativos.')
+            }
 
             setAds(result.ads.map((ad: any) => ({
                 id: ad.id,
@@ -125,9 +136,9 @@ export default function AdLibraryViewer() {
             }
         } catch (err: any) {
             const errorMsg = err.response?.data?.error || err.message || 'Scraper Failed'
-            setError(errorMsg)
-            alert(`Scraper Error: ${errorMsg}`)
+            setError(`Scraper Error: ${errorMsg}`)
         } finally {
+            clearTimeout(timeoutId)
             setScrapping(false)
         }
     }
@@ -311,7 +322,7 @@ export default function AdLibraryViewer() {
                 <div className="bg-dark-800/50 backdrop-blur-xl border border-dark-700/50 rounded-2xl p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                         <h3 className="text-lg font-semibold text-white">
-                            {totalFound} Anúncios Ativos
+                            {totalFound} Anúncios {method === 'scraper' ? 'Encontrados' : 'Ativos'}
                             <span className="ml-2 text-sm font-normal text-dark-400">({method === 'api' ? 'Via API Oficinal' : 'Via Scraper Pro'})</span>
                         </h3>
 

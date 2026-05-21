@@ -116,214 +116,209 @@ export class AdLibraryScraper {
             logger.info(`🚀 [Deep Scrape] Navegando para Ad Library...`);
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
 
-            // Initial wait for content to render
-            logger.info(`⏳ [Deep Scrape] Aguardando carregamento inicial (5s)...`);
-            await new Promise(r => setTimeout(r, 5000));
+            // Initial wait for content to render — Facebook SPA needs more time
+            logger.info(`⏳ [Deep Scrape] Aguardando carregamento SPA (15s)...`);
+            await new Promise(r => setTimeout(r, 15000));
+
+            // Scroll to load more ads
+            logger.info('📜 [Deep Scrape] Rolando página para carregar anúncios...');
+            await page.evaluate(async () => {
+                const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+                for (let i = 0; i < 12; i++) {
+                    window.scrollBy(0, 1500);
+                    await delay(2000);
+                }
+            });
+
+            // Extra wait after scrolling for lazy-loaded content
+            await new Promise(r => setTimeout(r, 3000));
 
             // Check for blockage / login wall
             const pageContent = await page.content();
             const lowerContent = pageContent.toLowerCase();
-            if (lowerContent.includes('temporarily blocked') || lowerContent.includes('log in') || lowerContent.includes('entrar')) {
+            if (lowerContent.includes('temporarily blocked') || lowerContent.includes('log in') || lowerContent.includes('entrar') || lowerContent.includes('login')) {
                 logger.warn('⚠️ [Deep Scrape] Facebook detectou acesso ou bloqueio. Continuando tentativa...');
                 const blockScreen = await page.screenshot({ encoding: 'base64' });
-                // Continue anyway — sometimes data is still rendered behind the overlay
             }
 
-            // Scroll to load more ads — increase from 5 to 10 scrolls
-            logger.info('📜 [Deep Scrape] Rolando página para carregar anúncios...');
-            await page.evaluate(async () => {
-                const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-                for (let i = 0; i < 10; i++) {
-                    window.scrollBy(0, 1200);
-                    await delay(1500);
-                }
-            });
-
-            // --- Extract ads using link-based approach (more resilient) ---
-            logger.info('🔍 [Deep Scrape] Extraindo IDs de anúncios da página...');
+            // --- Extract ads by scanning the FULL rendered HTML ---
+            // Facebook Ad Library is a React SPA — ads may not use <a> tags
+            logger.info('🔍 [Deep Scrape] Extraindo anúncios do HTML renderizado...');
 
             const collectedAds = new Map<string, ScrapedAd>();
 
-            // Extract ad data by looking for ad library links in the DOM
-            const extractedAds = await page.evaluate(() => {
-                const ads: ScrapedAd[] = [];
+            // Strategy 1: Search entire HTML content for facebook.com/ads/library/?id= patterns
+            logger.info('📄 [Deep Scrape] Estratégia 1: Varredura HTML completa...');
+            const htmlContent = pageContent;
+            const adUrlRegex = /https?:\/\/(?:www\.)?facebook\.com\/ads\/library\/\?id=(\d{9,})/gi;
+            let urlMatch;
+            const foundIdsFromHtml = new Set<string>();
+            while ((urlMatch = adUrlRegex.exec(htmlContent)) !== null) {
+                foundIdsFromHtml.add(urlMatch[1]);
+            }
+            logger.info(`📄 [Deep Scrape] Encontrados ${foundIdsFromHtml.size} IDs únicos no HTML.`);
 
-                // Find all links pointing to ads/library/?id=
-                const allLinks = Array.from(document.querySelectorAll('a[href*="ads/library"]'));
-                const seenIds = new Set<string>();
-                const adLinks = allLinks.filter(link => {
-                    const href = link.getAttribute('href') || '';
-                    const match = href.match(/[?&]id=(\d{9,})/);
-                    if (match && !seenIds.has(match[1])) {
-                        seenIds.add(match[1]);
-                        return true;
-                    }
-                    return false;
-                });
-
-                // For each unique ad link, walk up to find the card container and extract metadata
-                for (const link of adLinks) {
-                    const href = link.getAttribute('href') || '';
-                    const idMatch = href.match(/[?&]id=(\d{9,})/);
-                    if (!idMatch) continue;
-
-                    const id = idMatch[1];
-                    let container = link.closest('div[role="article"]') || link.closest('[data-pagelet]') || link.parentElement;
-
-                    // If no article/parent container, walk up manually
-                    if (!container || container === document.body) {
-                        container = link;
-                        for (let i = 0; i < 8; i++) {
-                            if (container?.parentElement && container.parentElement !== document.body) {
-                                container = container.parentElement;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-
-                    const cardText = container?.textContent || '';
-
-                    // Extract start date
-                    let startDate = '';
-                    const datePatterns = [
-                        /(?:Started running on|Veiculação iniciada em|Veiculado a partir de|En circulación desde|Ativo desde|Active since|Começou a ser veiculado em)[:\s]+([^•\n]+)/i,
-                        /(?:Data de início|Start date)[:\s]+([^•\n]+)/i,
-                    ];
-
-                    for (const pattern of datePatterns) {
-                        const match = cardText.match(pattern);
-                        if (match) {
-                            const rawDate = match[1].trim();
-                            try {
-                                const cleanParts = rawDate.replace(/,|de /g, ' ').split(/\s+/).filter(p => p);
-                                if (cleanParts.length >= 3) {
-                                    const day = parseInt(cleanParts[0]);
-                                    const monthStr = cleanParts[1].toLowerCase().substring(0, 3);
-                                    const year = parseInt(cleanParts[2]);
-
-                                    const monthMap: { [key: string]: number } = {
-                                        'jan': 0, 'fev': 1, 'feb': 1, 'mar': 2, 'abr': 3, 'apr': 3,
-                                        'mai': 4, 'may': 4, 'jun': 5, 'jul': 6, 'ago': 7, 'aug': 7,
-                                        'set': 8, 'sep': 8, 'out': 9, 'oct': 9, 'nov': 10, 'dez': 11, 'dec': 11
-                                    };
-
-                                    if (!isNaN(day) && !isNaN(year) && monthMap.hasOwnProperty(monthStr)) {
-                                        const dateObj = new Date(year, monthMap[monthStr], day);
-                                        const offset = dateObj.getTimezoneOffset() * 60000;
-                                        startDate = new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
-                                    } else {
-                                        const directParse = new Date(rawDate);
-                                        if (!isNaN(directParse.getTime())) {
-                                            startDate = directParse.toISOString();
-                                        }
-                                    }
-                                }
-                            } catch (e) {
-                                // ignore parse errors
-                            }
-                            break;
-                        }
-                    }
-
-                    // Extract thumbnail (largest image in card)
-                    let thumbnailUrl = '';
-                    if (container) {
-                        const images = Array.from(container.querySelectorAll('img'));
-                        let bestImg: HTMLImageElement | null = null;
-                        let maxArea = 0;
-
-                        for (const img of images) {
-                            // Filter out tiny icons / profile pics
-                            const w = img.naturalWidth || (img as any).width || 0;
-                            const h = img.naturalHeight || (img as any).height || 0;
-                            const area = w * h;
-                            if (area > 2500 && area > maxArea) {
-                                maxArea = area;
-                                bestImg = img;
-                            }
-                        }
-
-                        // Fallback: check for video poster
-                        if (bestImg) {
-                            thumbnailUrl = bestImg.src;
-                        } else {
-                            const video = container.querySelector('video');
-                            if (video && video.poster) {
-                                thumbnailUrl = video.poster;
-                            }
-                        }
-                    }
-
-                    // Extract creative body text (look for paragraphs with substantial text)
-                    let creativeBody = '';
-                    if (container) {
-                        const textElements = Array.from(container.querySelectorAll('p, span, div'));
-                        for (const el of textElements) {
-                            const text = (el as HTMLElement).innerText?.trim();
-                            if (text && text.length > 20 && text.length < 500) {
-                                // Skip known non-creative text patterns
-                                if (!text.startsWith('http') && !text.includes('ID:') && !text.match(/^\d+$/) && !text.includes('Started running') && !text.includes('Veiculação')) {
-                                    creativeBody = text;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    ads.push({
+            for (const id of foundIdsFromHtml) {
+                if (!collectedAds.has(id)) {
+                    collectedAds.set(id, {
                         id,
-                        ad_delivery_start_time: startDate,
                         ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
-                        thumbnail_url: thumbnailUrl,
                         isActive: true,
-                        creative_body: creativeBody,
                     });
-                }
-
-                return ads;
-            });
-
-            // Deduplicate by ID
-            for (const ad of extractedAds) {
-                if (!collectedAds.has(ad.id)) {
-                    collectedAds.set(ad.id, ad);
                 }
             }
 
-            logger.info(`📄 [Deep Scrape] Encontrados ${collectedAds.size} anúncios via links.`);
-
-            // If link extraction found nothing, try fallback raw text scanning
+            // Strategy 2: Try to extract from JSON in <script> tags
             if (collectedAds.size === 0) {
-                logger.info('⚠️ [Deep Scrape] Nenhum anúncio encontrado via links. Tentando fallback de texto...');
-                const textAds = await page.evaluate(() => {
-                    const found: ScrapedAd[] = [];
-                    const bodyText = document.body.innerText || '';
-                    // Look for ID patterns in plain text
-                    const idRegex = /(?:ID|Identificação)[:\s]+(\d{9,})/gi;
-                    let match;
-                    const seen = new Set<string>();
-                    while ((match = idRegex.exec(bodyText)) !== null) {
-                        const id = match[1];
-                        if (!seen.has(id)) {
-                            seen.add(id);
-                            found.push({
+                logger.info('📄 [Deep Scrape] Estratégia 2: Buscando em script tags...');
+                const scriptData = await page.evaluate(() => {
+                    const results: string[] = [];
+                    const scripts = document.querySelectorAll('script:not([src])');
+                    for (const script of scripts) {
+                        const text = script.textContent || '';
+                        // Look for ad ID patterns in JSON data
+                        const matches = text.match(/"id"\s*:\s*"(\d{9,})"/g);
+                        if (matches) {
+                            for (const m of matches) {
+                                const idMatch = m.match(/"id"\s*:\s*"(\d{9,})"/);
+                                if (idMatch) results.push(idMatch[1]);
+                            }
+                        }
+                    }
+                    return results;
+                });
+
+                const uniqueScriptIds = [...new Set(scriptData)];
+                logger.info(`📄 [Deep Scrape] Script tags: ${uniqueScriptIds.length} IDs encontrados.`);
+                for (const id of uniqueScriptIds) {
+                    if (!collectedAds.has(id)) {
+                        collectedAds.set(id, {
+                            id,
+                            ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
+                            isActive: true,
+                        });
+                    }
+                }
+            }
+
+            // Strategy 3: Try DOM link-based extraction (original approach) as supplement
+            logger.info('📄 [Deep Scrape] Estratégia 3: Extração via DOM links...');
+            const extractedAds = await page.evaluate(() => {
+                const ads: any[] = [];
+
+                // Try various selectors that Facebook might use
+                const selectors = [
+                    'a[href*="ads/library"]',
+                    'a[href*="ad_library"]',
+                    'a[href*="adlibrary"]',
+                    '[role="link"][href*="ads"]',
+                ];
+
+                const seenIds = new Set<string>();
+
+                for (const selector of selectors) {
+                    const elements = document.querySelectorAll(selector);
+                    for (const el of elements) {
+                        const href = el.getAttribute('href') || (el as any).href || '';
+                        const match = href.match(/[?&]id=(\d{9,})/);
+                        if (match && !seenIds.has(match[1])) {
+                            seenIds.add(match[1]);
+                            const id = match[1];
+                            let container = el.closest('div[role="article"]') || el.closest('[data-pagelet]') || el.parentElement;
+
+                            if (!container || container === document.body) {
+                                container = el as HTMLElement;
+                                for (let i = 0; i < 10; i++) {
+                                    if (container?.parentElement && container.parentElement !== document.body) {
+                                        container = container.parentElement;
+                                    } else break;
+                                }
+                            }
+
+                            const cardText = container?.textContent || '';
+
+                            // Extract start date
+                            let startDate = '';
+                            const datePatterns = [
+                                /(?:Started running on|Veiculação iniciada em|Veiculado a partir de|En circulación desde|Ativo desde|Active since|Começou a ser veiculado em)[:\s]+([^•\n]+)/i,
+                                /(?:Data de início|Start date)[:\s]+([^•\n]+)/i,
+                            ];
+
+                            for (const pattern of datePatterns) {
+                                const m = cardText.match(pattern);
+                                if (m) {
+                                    const rawDate = m[1].trim();
+                                    try {
+                                        const cleanParts = rawDate.replace(/,|de /g, ' ').split(/\s+/).filter((p: string) => p);
+                                        if (cleanParts.length >= 3) {
+                                            const day = parseInt(cleanParts[0]);
+                                            const monthStr = cleanParts[1].toLowerCase().substring(0, 3);
+                                            const year = parseInt(cleanParts[2]);
+                                            const monthMap: { [key: string]: number } = {
+                                                'jan': 0, 'fev': 1, 'feb': 1, 'mar': 2, 'abr': 3, 'apr': 3,
+                                                'mai': 4, 'may': 4, 'jun': 5, 'jul': 6, 'ago': 7, 'aug': 7,
+                                                'set': 8, 'sep': 8, 'out': 9, 'oct': 9, 'nov': 10, 'dez': 11, 'dec': 11
+                                            };
+                                            if (!isNaN(day) && !isNaN(year) && monthMap.hasOwnProperty(monthStr)) {
+                                                const dateObj = new Date(year, monthMap[monthStr], day);
+                                                const offset = dateObj.getTimezoneOffset() * 60000;
+                                                startDate = new Date(dateObj.getTime() - offset).toISOString().split('T')[0];
+                                            } else {
+                                                const directParse = new Date(rawDate);
+                                                if (!isNaN(directParse.getTime())) startDate = directParse.toISOString();
+                                            }
+                                        }
+                                    } catch (e) { /* ignore */ }
+                                    break;
+                                }
+                            }
+
+                            // Extract thumbnail
+                            let thumbnailUrl = '';
+                            if (container) {
+                                const images = Array.from(container.querySelectorAll('img'));
+                                let bestImg: HTMLImageElement | null = null;
+                                let maxArea = 0;
+                                for (const img of images) {
+                                    const w = img.naturalWidth || (img as any).width || 0;
+                                    const h = img.naturalHeight || (img as any).height || 0;
+                                    const area = w * h;
+                                    if (area > 2500 && area > maxArea) { maxArea = area; bestImg = img; }
+                                }
+                                if (bestImg) {
+                                    thumbnailUrl = bestImg.src;
+                                } else {
+                                    const video = container.querySelector('video');
+                                    if (video?.poster) thumbnailUrl = video.poster;
+                                }
+                            }
+
+                            ads.push({
                                 id,
+                                ad_delivery_start_time: startDate,
                                 ad_snapshot_url: `https://www.facebook.com/ads/library/?id=${id}`,
+                                thumbnail_url: thumbnailUrl,
                                 isActive: true,
                             });
                         }
                     }
-                    return found;
-                });
-
-                for (const ad of textAds) {
-                    if (!collectedAds.has(ad.id)) {
-                        collectedAds.set(ad.id, ad);
-                    }
                 }
-                logger.info(`📄 [Deep Scrape] Fallback encontrou mais ${textAds.length} anúncios. Total: ${collectedAds.size}`);
+                return ads;
+            });
+
+            // Merge DOM results (prefer DOM data since it has dates/thumbnails)
+            for (const ad of extractedAds) {
+                if (!collectedAds.has(ad.id)) {
+                    collectedAds.set(ad.id, ad);
+                } else if (ad.ad_delivery_start_time || ad.thumbnail_url) {
+                    // Update existing entry with richer data
+                    const existing = collectedAds.get(ad.id)!;
+                    if (ad.ad_delivery_start_time) existing.ad_delivery_start_time = ad.ad_delivery_start_time;
+                    if (ad.thumbnail_url) existing.thumbnail_url = ad.thumbnail_url;
+                }
             }
+
+            logger.info(`📄 [Deep Scrape] Total após todas estratégias: ${collectedAds.size} anúncios.`);
 
             // --- Extract Insights (Top URLs and Oldest Dates) ---
             logger.info('📊 [Deep Scrape] Extraindo insights...');
