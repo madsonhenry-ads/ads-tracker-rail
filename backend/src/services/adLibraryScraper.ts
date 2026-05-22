@@ -32,6 +32,8 @@ interface ScrapeOptions {
     activeStatus?: 'active' | 'inactive' | 'all';
 }
 
+const REAL_BLOCK_KEYWORDS = ['temporarily blocked', 'you have been blocked', 'your account has been disabled', 'crie uma conta para continuar'];
+
 export class AdLibraryScraper {
 
     private proxyHost = process.env.PRIVATEPROXY_HOST || '';
@@ -41,7 +43,6 @@ export class AdLibraryScraper {
 
     async scrapePageAds(pageId: string, options: ScrapeOptions = {}): Promise<AdLibraryScrapeResult> {
         const { country = 'ALL', activeStatus = 'active' } = options;
-
         logger.info(`🕵️‍♀️ [Deep Scrape] Iniciando página: ${pageId} (country: ${country}, status: ${activeStatus})`);
 
         const activeParam = activeStatus === 'all' ? 'all' : activeStatus;
@@ -61,13 +62,12 @@ export class AdLibraryScraper {
 
             try {
                 const result = await this.scrapeWithViewport(pageId, url, s, useProxy);
-                // Filter out any ad whose ID equals the page ID
                 const realAds = result.ads.filter(ad => ad.id !== pageId);
                 result.ads = realAds;
                 result.totalAdsFound = realAds.length;
 
                 if (result.totalAdsFound > 0) {
-                    logger.info(`✅ [Deep Scrape] Sucesso: ${result.totalAdsFound} anúncios (filtrados: ${result.ads.length - realAds.length})`);
+                    logger.info(`✅ [Deep Scrape] Sucesso: ${result.totalAdsFound} anúncios`);
                     return result;
                 }
                 logger.warn(`⚠️ Tentativa ${attempt + 1} retornou 0 anúncios reais`);
@@ -100,11 +100,11 @@ export class AdLibraryScraper {
             launchArgs.push(`--proxy-server=http://${this.proxyHost}:${this.proxyPort}`);
         }
 
-        const browser = await (puppeteerExtra as any).launch({
-            headless: true, args: launchArgs, executablePath, defaultViewport: null,
-        });
-
+        let browser: any;
         try {
+            browser = await (puppeteerExtra as any).launch({
+                headless: true, args: launchArgs, executablePath, defaultViewport: null,
+            });
             const page = await browser.newPage();
 
             if (useProxy && this.proxyUser && this.proxyPass) {
@@ -133,8 +133,7 @@ export class AdLibraryScraper {
                 Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
             });
 
-            // --- Don't intercept requests — let everything load naturally ---
-            // Just capture API responses
+            // Capture all JSON/API responses
             const apiResponses: any[] = [];
             page.on('response', async (response) => {
                 const ct = response.headers()['content-type'] || '';
@@ -150,71 +149,66 @@ export class AdLibraryScraper {
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
 
             const currentUrl = page.url();
-            logger.info(`   📍 URL final: ${currentUrl}`);
             const title = await page.title();
+            logger.info(`   📍 URL: ${currentUrl}`);
             logger.info(`   📍 Título: "${title}"`);
 
-            // Check if URL changed (redirected to login)
             if (!currentUrl.includes('ads/library') || currentUrl.includes('login') || currentUrl.includes('checkpoint')) {
-                logger.warn(`⚠️ Redirecionado! Página: ${currentUrl}`);
+                logger.warn(`⚠️ Redirecionado!`);
             }
 
-            // Wait for page to settle — Facebook loads ads asynchronously
-            logger.info(`⏳ [Deep Scrape] Aguardando carregamento (20s)...`);
+            // Wait for ads to render
+            logger.info(`⏳ [Deep Scrape] Aguardando (20s)...`);
             await new Promise(r => setTimeout(r, 20000));
 
-            // Try to wait for any ad-related selector
-            try {
-                await page.waitForSelector('a[href*="/ads/library/"]', { timeout: 5000 });
-                logger.info(`   ✅ Link de anúncio encontrado no DOM`);
-            } catch {
-                logger.info(`   ⏭️ Nenhum link de anúncio encontrado via selector`);
-            }
-
-            // Check page content for block
             const html = await page.content();
+            logger.info(`   📄 HTML: ${html.length} chars`);
+
+            // Check for REAL block
             const lower = html.toLowerCase();
-            logger.info(`   📄 HTML length: ${html.length} chars`);
+            const isBlocked = REAL_BLOCK_KEYWORDS.some(k => lower.includes(k));
+            if (isBlocked) logger.warn(`⚠️⚠️⚠️ [Deep Scrape] BLOQUEIO REAL DETECTADO!`);
 
-            if (lower.includes('temporarily blocked') || lower.includes('log in') || lower.includes('entrar') || lower.includes('crie uma conta') || lower.includes('create account')) {
-                logger.warn(`⚠️⚠️⚠️ [Deep Scrape] BLOQUEIO DETECTADO!`);
-            }
-
-            // Log what the page body looks like (first 200 chars of body text)
             const bodyText = await page.evaluate(() => document.body?.innerText?.substring(0, 500) || '');
-            logger.info(`   📝 Body text (início): ${bodyText.replace(/\n/g, ' | ')}`);
+            logger.info(`   📝 Body: ${bodyText.replace(/\n/g, ' | ')}`);
 
-            // --- Ghost cursor initial movement ---
+            // Ghost cursor
             try {
                 const cursor = createCursor(page);
                 await cursor.moveTo({ x: 400 + Math.random() * 200, y: 500 + Math.random() * 200 });
                 await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000));
             } catch { }
 
-            // --- Scroll in many small increments with generous delays ---
-            logger.info(`📜 [Deep Scrape] Rolando (20 steps)...`);
+            // Scroll
+            logger.info(`📜 [Deep Scrape] Rolando...`);
             await page.evaluate(async () => {
                 const maxH = Math.max(document.body.scrollHeight, 5000);
-                const steps = 20;
-                for (let i = 0; i < steps; i++) {
-                    window.scrollTo(0, (maxH / steps) * (i + 1));
-                    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+                for (let i = 0; i < 20; i++) {
+                    window.scrollTo(0, (maxH / 20) * (i + 1));
+                    await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
                 }
-                // Go back to top
                 window.scrollTo(0, 0);
                 await new Promise(r => setTimeout(r, 2000));
-                // Second scroll pass
-                for (let i = 0; i < steps; i++) {
-                    window.scrollTo(0, (maxH / steps) * (i + 1));
+                for (let i = 0; i < 15; i++) {
+                    window.scrollTo(0, (maxH / 15) * (i + 1));
                     await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
                 }
             });
 
             await new Promise(r => setTimeout(r, 5000));
+            logger.info(`   📦 API responses: ${apiResponses.length}`);
 
-            logger.info(`   📦 API responses capturadas: ${apiResponses.length}`);
+            // Log first API response keys for debugging
+            if (apiResponses.length > 0) {
+                try {
+                    const sample = JSON.stringify(apiResponses[0]).substring(0, 300);
+                    logger.info(`   📦 Sample: ${sample}...`);
+                    const keys = Object.keys(apiResponses[0]);
+                    logger.info(`   📦 Top keys: ${keys.join(', ').substring(0, 200)}`);
+                } catch {}
+            }
 
-            // --- STRATEGY 1: API responses (strict mode — only real ads) ---
+            // --- STRATEGY 1: API/GraphQL responses ---
             const adsFromApi = this.extractAdsFromJson(apiResponses, pageId);
             logger.info(`🔍 API: ${adsFromApi.length} anúncios`);
 
@@ -224,7 +218,7 @@ export class AdLibraryScraper {
                 return { pageId, totalAdsFound: adsFromApi.length, ads: adsFromApi, insights, screenshot: ss as string };
             }
 
-            // --- STRATEGY 2: DOM extraction (improved) ---
+            // --- STRATEGY 2: DOM extraction ---
             const domAds = await this.extractAdsFromDom(page, pageId);
             logger.info(`🔍 DOM: ${domAds.length} anúncios`);
 
@@ -234,7 +228,7 @@ export class AdLibraryScraper {
                 return { pageId, totalAdsFound: domAds.length, ads: domAds, insights, screenshot: ss as string };
             }
 
-            // --- STRATEGY 3: HTML regex (with page ID filter) ---
+            // --- STRATEGY 3: HTML regex ---
             const htmlAds = this.extractAdsFromHtml(html, pageId);
             logger.info(`🔍 HTML: ${htmlAds.length} anúncios`);
 
@@ -244,7 +238,7 @@ export class AdLibraryScraper {
                 return { pageId, totalAdsFound: htmlAds.length, ads: htmlAds, insights, screenshot: ss as string };
             }
 
-            // --- STRATEGY 4: script tags ---
+            // --- STRATEGY 4: Script tags ---
             const scriptAds = await this.extractAdsFromScripts(page, pageId);
             logger.info(`🔍 Scripts: ${scriptAds.length} anúncios`);
 
@@ -255,51 +249,100 @@ export class AdLibraryScraper {
             }
 
             const ss = await page.screenshot({ encoding: 'base64' });
-            logger.warn(`⚠️ [Deep Scrape] Nenhum anúncio encontrado.`);
+            logger.warn(`⚠️ Nenhum anúncio encontrado.`);
             return { pageId, totalAdsFound: 0, ads: [], screenshot: ss as string };
 
         } catch (error: any) {
             logger.error(`❌ [Deep Scrape] Falha: ${error.message}`);
             throw error;
         } finally {
-            await browser.close().catch(() => { });
+            if (browser) await browser.close().catch(() => {});
         }
     }
 
-    /** Extract real ads from API/GraphQL responses — strict filtering */
+    /**
+     * Extract ad IDs from JSON API responses.
+     * VERY permissive — assumes any 9+ digit ID that isn't the page ID is an ad.
+     * Facebook GraphQL responses use many different field name conventions.
+     */
     private extractAdsFromJson(responses: any[], pageId: string): ScrapedAd[] {
         const adsMap = new Map<string, ScrapedAd>();
         const seenIds = new Set<string>();
 
         const traverse = (obj: any, depth = 0) => {
-            if (!obj || depth > 20 || typeof obj !== 'object') return;
+            if (!obj || depth > 25 || typeof obj !== 'object') return;
 
-            if (obj.id && typeof obj.id === 'string') {
-                const id = obj.id;
-                // Must be 9+ digits AND must not be the page ID
-                if (id.match(/^\d{9,}$/) && id !== pageId && !seenIds.has(id)) {
-                    // Require at least one ad-specific field
-                    const hasAdField = obj.ad_snapshot_url?.includes('ads/library') ||
-                        obj.creative_body ||
-                        obj.ad_creative_body ||
-                        obj.thumbnail_url?.includes('fbcdn') ||
-                        obj.ad_delivery_start_time ||
-                        (obj.creation_time && obj.creation_time.length > 5);
+            // Look for objects with ID + any evidence of being an ad
+            if (obj && typeof obj === 'object') {
+                // Try string IDs
+                if (obj.id && typeof obj.id === 'string' && obj.id.match(/^\d{9,}$/) && obj.id !== pageId && !seenIds.has(obj.id)) {
+                    // Check for ANY URL-like field or snapshot/creative field
+                    const hasUrlField = obj.ad_snapshot_url || obj.snapshot_url || obj.url || obj.permalink_url;
+                    const hasAdField = obj.creative_body || obj.body || obj.ad_creative_body || obj.thumbnail_url || obj.thumbnail || obj.creation_time || obj.ad_delivery_start_time;
+                    const hasName = obj.name && typeof obj.name === 'string' && obj.name.length > 5;
 
-                    if (hasAdField || obj.ad_snapshot_url || (obj.thumbnail_url && obj.thumbnail_url.length > 30)) {
-                        seenIds.add(id);
-                        adsMap.set(id, {
-                            id,
-                            ad_snapshot_url: obj.ad_snapshot_url || `https://www.facebook.com/ads/library/?id=${id}`,
-                            creative_body: obj.creative_body || obj.ad_creative_body || obj.body || '',
-                            ad_delivery_start_time: obj.ad_delivery_start_time || obj.creation_time || '',
-                            thumbnail_url: obj.thumbnail_url || obj.thumbnail || '',
+                    // Accept if it has any ad-like field OR is inside a node with ad context
+                    if (hasUrlField || hasAdField || hasName) {
+                        seenIds.add(obj.id);
+                        const snapUrl = obj.ad_snapshot_url || obj.snapshot_url || obj.url || `https://www.facebook.com/ads/library/?id=${obj.id}`;
+                        adsMap.set(obj.id, {
+                            id: obj.id,
+                            ad_snapshot_url: snapUrl,
+                            creative_body: obj.creative_body || obj.body || obj.ad_creative_body || obj.message || obj.text || '',
+                            ad_delivery_start_time: obj.ad_delivery_start_time || obj.creation_time || obj.start_time || obj.created_time || '',
+                            thumbnail_url: obj.thumbnail_url || obj.thumbnail || obj.picture || obj.image || '',
                             isActive: true,
                         });
                     }
                 }
+
+                // Try number IDs too
+                if (obj.id && typeof obj.id === 'number') {
+                    const idStr = obj.id.toString();
+                    if (idStr.match(/^\d{9,}$/) && idStr !== pageId && !seenIds.has(idStr)) {
+                        const hasUrlField = obj.ad_snapshot_url || obj.snapshot_url || obj.url;
+                        const hasAdField = obj.creative_body || obj.body || obj.thumbnail_url || obj.creation_time;
+                        if (hasUrlField || hasAdField) {
+                            seenIds.add(idStr);
+                            adsMap.set(idStr, {
+                                id: idStr,
+                                ad_snapshot_url: obj.ad_snapshot_url || obj.snapshot_url || `https://www.facebook.com/ads/library/?id=${idStr}`,
+                                creative_body: obj.creative_body || obj.body || obj.message || '',
+                                thumbnail_url: obj.thumbnail_url || obj.thumbnail || obj.picture || '',
+                                isActive: true,
+                            });
+                        }
+                    }
+                }
+
+                // Also check for node sub-objects (common FB GraphQL pattern: { node: { id: "...", ... } })
+                if (obj.node && typeof obj.node === 'object' && obj.node.id) traverse(obj.node, depth);
+
+                // Check for "ad" sub-object
+                if (obj.ad && typeof obj.ad === 'object' && obj.ad.id) traverse(obj.ad, depth);
+
+                // Check for adArchiveID (another common FB field)
+                if (obj.adArchiveID && !seenIds.has(obj.adArchiveID) && obj.adArchiveID !== pageId) {
+                    const adId = obj.adArchiveID;
+                    seenIds.add(adId);
+                    adsMap.set(adId, {
+                        id: adId,
+                        ad_snapshot_url: obj.ad_snapshot_url || obj.snapshot_url || `https://www.facebook.com/ads/library/?id=${adId}`,
+                        creative_body: obj.creative_body || obj.body || obj.message || '',
+                        thumbnail_url: obj.thumbnail_url || obj.thumbnail || obj.picture || '',
+                        isActive: true,
+                    });
+                }
+
+                // edge/nodes arrays pattern (FB GraphQL pagination)
+                if (obj.edges && Array.isArray(obj.edges)) {
+                    for (const edge of obj.edges) {
+                        if (edge && typeof edge === 'object') traverse(edge, depth + 1);
+                    }
+                }
             }
 
+            // Recurse
             if (Array.isArray(obj)) {
                 for (const item of obj) traverse(item, depth + 1);
             } else if (typeof obj === 'object') {
@@ -320,9 +363,9 @@ export class AdLibraryScraper {
                 const ads: any[] = [];
                 const seenIds = new Set<string>();
 
+                // Fix: use href*="ads/library" WITHOUT trailing slash
                 const selectors = [
-                    'a[href*="/ads/library/"]',
-                    'a[href*="ad_library"]',
+                    'a[href*="ads/library"]',
                     'a[href*="/ads/about"]',
                 ];
 
@@ -334,18 +377,17 @@ export class AdLibraryScraper {
                         seenIds.add(m[1]);
                         const id = m[1];
 
-                        // Try to find closest container that might be an ad card
+                        // Find container for thumbnail
                         let container = el.closest('[role="article"]') || el.closest('[data-pagelet]');
                         if (!container) {
                             let p = el.parentElement;
-                            for (let i = 0; i < 6 && p && p !== document.body; i++) { container = p; p = p.parentElement; }
+                            for (let i = 0; i < 8 && p && p !== document.body; i++) { container = p; p = p.parentElement; }
                         }
 
-                        // Thumbnail: find first meaningful image
+                        // Find image
                         let thumb = '';
                         if (container) {
-                            const imgs = container.querySelectorAll('img');
-                            for (const img of Array.from(imgs)) {
+                            for (const img of Array.from(container.querySelectorAll('img'))) {
                                 const src = (img as HTMLImageElement).src || '';
                                 if (src && src.length > 30 && !src.includes('emoji') && !src.includes('blueprint')) {
                                     thumb = src; break;
