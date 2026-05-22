@@ -36,6 +36,7 @@ export default function AdLibraryViewer() {
     const [transcribingId, setTranscribingId] = useState<string | null>(null)
     const [transcriptionResult, setTranscriptionResult] = useState<{id: string, text: string} | null>(null)
     const [copiedId, setCopiedId] = useState<string | null>(null)
+    const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
     // Páginas salvas + filtros
     const [savedPages, setSavedPages] = useState<Page[]>([])
@@ -210,6 +211,51 @@ export default function AdLibraryViewer() {
         navigator.clipboard.writeText(text)
         setCopiedId(id)
         setTimeout(() => setCopiedId(null), 2000)
+    }
+
+    const handleDownload = async (ad: AdVersion) => {
+        if (!ad.ad_snapshot_url) {
+            window.open(ad.detailsUrl || '', '_blank')
+            return
+        }
+
+        setDownloadingId(ad.id)
+        try {
+            const response = await adLibraryApi.downloadAdMedia(ad.ad_snapshot_url)
+            const contentType = (response.headers['content-type'] as string) || 'application/octet-stream'
+            const blob = new Blob([response.data], { type: contentType })
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+
+            // Try to get filename from Content-Disposition header
+            const disposition = response.headers['content-disposition'] as string | undefined
+            let filename = `ad_${ad.id}`
+            if (disposition) {
+                const match = disposition.match(/filename\*?=(?:UTF-8'')?([^;\s]+)/i)
+                if (match) filename = match[1].replace(/"/g, '')
+            } else {
+                // Determine extension from content type
+                if (contentType.includes('mp4')) filename += '.mp4'
+                else if (contentType.includes('png')) filename += '.png'
+                else if (contentType.includes('jpeg') || contentType.includes('jpg')) filename += '.jpg'
+                else if (contentType.includes('gif')) filename += '.gif'
+                else if (contentType.includes('webp')) filename += '.webp'
+                else filename += '.mp4'
+            }
+
+            a.download = filename
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            window.URL.revokeObjectURL(url)
+        } catch (err: any) {
+            console.error('Download failed, falling back to snapshot URL:', err)
+            // Fallback: open snapshot URL in new tab
+            window.open(ad.ad_snapshot_url, '_blank')
+        } finally {
+            setDownloadingId(null)
+        }
     }
 
     const getDaysActive = (dateStr?: string) => {
@@ -535,11 +581,16 @@ export default function AdLibraryViewer() {
                                             </button>
                                             
                                             <button
-                                                onClick={() => window.open(ad.ad_snapshot_url, '_blank')}
-                                                className="py-2.5 bg-green-600/10 hover:bg-green-600 text-green-400 hover:text-white border border-green-600/20 rounded-xl flex items-center justify-center gap-2 transition-all font-medium text-xs"
+                                                onClick={() => handleDownload(ad)}
+                                                disabled={downloadingId === ad.id}
+                                                className="py-2.5 bg-green-600/10 hover:bg-green-600 text-green-400 hover:text-white border border-green-600/20 rounded-xl flex items-center justify-center gap-2 transition-all font-medium text-xs disabled:opacity-50"
                                             >
-                                                <Download className="w-4 h-4" />
-                                                Baixar Criativo
+                                                {downloadingId === ad.id ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Download className="w-4 h-4" />
+                                                )}
+                                                {downloadingId === ad.id ? 'Baixando...' : 'Baixar Criativo'}
                                             </button>
                                         </div>
                                     </div>

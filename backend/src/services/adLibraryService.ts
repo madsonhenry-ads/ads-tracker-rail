@@ -1,4 +1,5 @@
 import axios from 'axios';
+import puppeteer from 'puppeteer';
 import { logger } from '../utils/logger.js';
 
 // --- Types ---
@@ -336,4 +337,123 @@ export async function scrapePageAdsApify(
         totalAdsFound: ads.length,
         ads,
     };
+}
+
+/**
+ * Download ad creative media (image/video) from a Facebook ad snapshot URL.
+ * Opens the snapshot page, finds the direct CDN media URL, and downloads it.
+ */
+export async function downloadAdMedia(
+    snapshotUrl: string,
+): Promise<{ buffer: Buffer; mimeType: string; filename: string }> {
+    logger.info(`📥 [Download] Iniciando download de: ${snapshotUrl}`);
+
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+        ],
+    });
+
+    try {
+        const page = await browser.newPage();
+        await page.setUserAgent(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        );
+
+        // Block images/other resources so the video loads faster
+        await page.setRequestInterception(true);
+        page.on('request', (req) => {
+            if (['stylesheet', 'font', 'image'].includes(req.resourceType())) {
+                req.abort();
+            } else {
+                req.continue();
+            }
+        });
+
+        await page.goto(snapshotUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        // Wait for dynamic content
+        await new Promise(r => setTimeout(r, 3000));
+
+        const mediaInfo = await page.evaluate(() => {
+            // Look for video element
+            const video = document.querySelector('video');
+            const videoSrc = video?.getAttribute('src') || video?.src || '';
+
+            // Look for direct fbcdn images
+            const allImages = Array.from(document.querySelectorAll('img'));
+            let fbcdnImage = '';
+            for (const img of allImages) {
+                const src = img.getAttribute('src') || img.src || '';
+                if (src.includes('fbcdn') || src.includes('.cdn.') || src.includes('_n.png') || src.includes('_o.jpg')) {
+                    fbcdnImage = src;
+                    break;
+                }
+                // Fallback: largest image
+                if (!fbcdnImage && src.startsWith('http') && img.width > 100) {
+                    fbcdnImage = src;
+                }
+            }
+
+            return { videoSrc, imageSrc: fbcdnImage };
+        });
+
+        let directUrl = mediaInfo.videoSrc || mediaInfo.imageSrc;
+        let mimeType = mediaInfo.videoSrc ? 'video/mp4' : 'image/jpeg';
+
+        if (!directUrl) {
+            // Last resort: extract from style background-image or any link
+            directUrl = await page.evaluate(() => {
+                const allEls = document.querySelectorAll('[style*="background-image"]');
+                for (const el of Array.from(allEls)) {
+                    const style = (el as HTMLElement).style.backgroundImage;
+                    const match = style.match(/url\(["']?([^"')]+)["']?\)/);
+                    if (match) return match[1];
+                }
+                return '';
+            });
+        }
+
+        if (!directUrl) {
+            throw new Error('Could not find media URL on the snapshot page');
+        }
+
+        logger.info(`   ✅ [Download] Mídia encontrada: ${directUrl.substring(0, 100)}...`);
+
+        // Download the file
+        const response = await axios.get(directUrl, {
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            headers: {
+                'Referer': 'https://www.facebook.com/',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+        });
+
+        const contentType = response.headers['content-type'] || mimeType;
+        const buffer = Buffer.from(response.data);
+
+        // Determine file extension
+        let ext = '.mp4';
+        if (contentType.includes('image/png')) ext = '.png';
+        else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) ext = '.jpg';
+        else if (contentType.includes('image/gif')) ext = '.gif';
+        else if (contentType.includes('image/webp')) ext = '.webp';
+        else if (contentType.includes('video/mp4')) ext = '.mp4';
+
+        // Extract ad ID from snapshot URL
+        const adIdMatch = snapshotUrl.match(/id=(\d+)/);
+        const filename = `ad_${adIdMatch ? adIdMatch[1] : 'unknown'}${ext}`;
+
+        logger.info(`   ✅ [Download] Arquivo baixado: ${filename} (${(buffer.length / 1024 / 1024).toFixed(1)} MB)`);
+
+        return { buffer, mimeType: contentType, filename };
+    } catch (error: any) {
+        logger.error(`❌ [Download] Falha: ${error.message}`);
+        throw error;
+    } finally {
+        await browser.close().catch(() => {});
+    }
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { enumerateSubdomains, mapFunnel, uncloakUrl, swapProxyIp, getPageAds, getAllPageAds, scrapePageAds, scrapePageAdsApifyCtrl, transcribeAdVideo } from '../controllers/funnelController.js';
+import { enumerateSubdomains, mapFunnel, uncloakUrl, swapProxyIp, getPageAds, getAllPageAds, scrapePageAds, scrapePageAdsApifyCtrl, transcribeAdVideo, downloadAdMediaCtrl } from '../controllers/funnelController.js';
 
 const router = Router();
 
@@ -12,5 +12,6 @@ router.get('/ads/:pageId/all', getAllPageAds);
 router.post('/ads/scrape', scrapePageAds);
 router.post('/ads/apify', scrapePageAdsApifyCtrl);
 router.post('/ads/transcribe', transcribeAdVideo);
+router.post('/ads/download-media', downloadAdMediaCtrl);
 
 export default router;

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { funnelService } from '../services/funnelService.js';
 import { uncloakService } from '../services/uncloakService.js';
-import { adLibraryService, scrapePageAdsApify } from '../services/adLibraryService.js';
+import { adLibraryService, scrapePageAdsApify, downloadAdMedia } from '../services/adLibraryService.js';
 import { adLibraryScraper } from '../services/adLibraryScraper.js';
 import { transcriptionService } from '../services/transcriptionService.js';
 import { logger } from '../utils/logger.js';
@@ -149,6 +149,25 @@ export const scrapePageAdsApifyCtrl = async (req: Request, res: Response) => {
         res.json({ success: true, data: result });
     } catch (error: any) {
         logger.error('Error scraping page ads via Apify', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const downloadAdMediaCtrl = async (req: Request, res: Response) => {
+    try {
+        const { snapshotUrl } = req.body;
+        if (!snapshotUrl) {
+            return res.status(400).json({ error: 'snapshotUrl is required' });
+        }
+
+        const result = await downloadAdMedia(snapshotUrl);
+
+        res.setHeader('Content-Type', result.mimeType);
+        res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+        res.setHeader('Content-Length', result.buffer.length);
+        res.send(result.buffer);
+    } catch (error: any) {
+        logger.error('Error downloading ad media', error);
         res.status(500).json({ error: error.message });
     }
 };

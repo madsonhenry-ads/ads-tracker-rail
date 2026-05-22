@@ -128,4 +128,5 @@ export const adLibraryApi = {
     scrapePageAds: (pageId: string, params?: { country?: string; activeStatus?: string }) => api.post<{ success: boolean; data: any }>('/tools/ads/scrape', { pageId, ...params }),
     scrapePageAdsApify: (pageId: string, params?: { country?: string; activeStatus?: string }) => api.post<{ success: boolean; data: any }>('/tools/ads/apify', { pageId, ...params }),
     transcribeVideo: (videoUrl: string) => api.post<{ success: boolean; text: string }>('/tools/ads/transcribe', { videoUrl }),
+    downloadAdMedia: (snapshotUrl: string) => api.post('/tools/ads/download-media', { snapshotUrl }, { responseType: 'blob' }),
 }
